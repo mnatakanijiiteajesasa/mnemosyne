@@ -6,7 +6,7 @@ services:
 
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
 
     container_name: mnemosyne_api
 
