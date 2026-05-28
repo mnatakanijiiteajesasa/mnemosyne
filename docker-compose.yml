@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
 
@@ -6,7 +5,7 @@ services:
 
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
 
     container_name: mnemosyne_api
 
