@@ -1,31 +1,28 @@
-# server
-flask
-gunicorn
+#server
+flask==3.1.1
+gunicorn==23.0.0
 
 
 #data
-pandas
-numpy
+pandas==2.3.0
+numpy==2.2.6
 
 #database
-pymongo
-qdrant_client 
-redis
-celery
-sqlalchemy
-psycopg2-binary
-pgvector
+pymongo==4.13.0
+qdrant_client==1.15.0
+redis==6.2.0
+celery==5.3.0
+sqlalchemy==2.0.41
+psycopg2-binary==2.9.10
+pgvector==0.4.1
 
 #frameworks
-langchain
-langgraph
+langchain==0.3.25
+langgraph==0.4.8
 
 #embeddings
-sentence-transformers
+sentence-transformers==4.1.0
 
-#ml
-torch
-torch_geometric
 
-pytest
-python_dotenv
+pytest==8.4.0
+python_dotenv==1.1.0
