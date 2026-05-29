@@ -12,6 +12,7 @@ qdrant_client==1.15.0
 redis==6.2.0
 celery==5.3.0
 pydantic==2.9.2
+pydantic-settings==2.6.1
 sqlalchemy[asyncio]==2.0.36
 psycopg2-binary==2.9.10
 pgvector==0.4.1
@@ -24,7 +25,7 @@ langgraph==0.4.8
 
 #embeddings
 sentence-transformers==4.1.0
-
+motor==3.6.0
 
 pytest==8.4.0
 python_dotenv==1.1.0
