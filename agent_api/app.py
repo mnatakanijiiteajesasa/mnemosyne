@@ -5,39 +5,40 @@ agent_api/main.py
 from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Optional
 
 from memory_engine.models import MemoryType
 from memory_engine.db import MemoryDB
 from memory_engine.writer import MemoryWriter
 from memory_engine.forgetting import ForgettingService
-from memory_engine.embeddings.encoder import EmbeddingEngine
 from memory_engine.session_store import SessionStore
+from memory_engine.embeddings.encoder import EmbeddingEngine
 
 
-db:         MemoryDB         = None
-encoder:    EmbeddingEngine  = None
-writer:     MemoryWriter     = None
-forgetting: ForgettingService = None
+db:           MemoryDB          = None
+encoder:      EmbeddingEngine   = None
+writer:       MemoryWriter      = None
+forgetting:   ForgettingService = None
 session_store: SessionStore     = None
-
 
 FORGET_EVERY_N_TURNS = 10
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, writer, forgetting
+    global db, encoder, writer, forgetting, session_store
 
     mongo_url  = os.getenv("MONGO_URL", "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
 
-    db         = MemoryDB(mongo_url)
-    encoder    = EmbeddingEngine(qdrant_url)
-    writer     = MemoryWriter(db, encoder)
-    forgetting = ForgettingService(db)
+    db            = MemoryDB(mongo_url)
+    encoder       = EmbeddingEngine(qdrant_url)
+    writer        = MemoryWriter(db, encoder)
+    forgetting    = ForgettingService(db)
+    session_store = SessionStore(mongo_url)
 
     await db.setup_indexes()
     await encoder.setup_collection()
@@ -46,7 +47,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Mnemosyne", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Mnemosyne", version="0.3.0", lifespan=lifespan)
 
 
 # Request models
@@ -54,22 +55,17 @@ app = FastAPI(title="Mnemosyne", version="0.2.0", lifespan=lifespan)
 
 class WriteRequest(BaseModel):
     user_id:     str
-    session_id:  str
+    session_id:  Optional[str] = None
     content:     str
     memory_type: MemoryType
     tags:        list[str] = []
-    source_turn: int = 0
 
 class RetrieveRequest(BaseModel):
-    user_id: str
+    user_id:    str
     session_id: Optional[str] = None
-    query:   str
-    top_k:   int = 5
+    query:      str
+    top_k:      int = 5
 
-class TickRequest(BaseModel):
-    user_id: str
-
- 
 class TurnRequest(BaseModel):
     """
     Main entry point per conversation turn.
@@ -81,21 +77,24 @@ class TurnRequest(BaseModel):
     query:      str = ""
     top_k:      int = 5
 
+
 # Endpoints
+
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.3.0"}
+
 
 @app.post("/turn")
 async def process_turn(req: TurnRequest):
     # 1. Get or create session
     session = await session_store.get_or_create(req.user_id, req.session_id)
     turn    = await session_store.tick(session.id)
- 
+
     # 2. Age all memories
     await db.tick_turns(req.user_id)
- 
+
     # 3. Write any new memories from this turn
     written = []
     for m in req.memories:
@@ -108,7 +107,7 @@ async def process_turn(req: TurnRequest):
             source_turn = turn,
         )
         written.append(record.id)
- 
+
     # 4. Retrieve relevant context
     retrieved = []
     if req.query:
@@ -116,12 +115,12 @@ async def process_turn(req: TurnRequest):
         retrieved = [r for r in results if r["payload"].get("user_id") == req.user_id]
         for r in retrieved:
             await db.update_access(r["memory_id"])
- 
+
     # 5. Run forgetting every N turns
     archived = []
     if turn % FORGET_EVERY_N_TURNS == 0:
         archived = await forgetting.run(req.user_id)
- 
+
     return {
         "session_id": session.id,
         "turn":       turn,
@@ -129,24 +128,24 @@ async def process_turn(req: TurnRequest):
         "retrieved":  retrieved,
         "archived":   archived,
     }
- 
+
 
 @app.post("/memory/write")
 async def write_memory(req: WriteRequest):
-    record = await writer.write(
+    session = await session_store.get_or_create(req.user_id, req.session_id)
+    record  = await writer.write(
         user_id     = req.user_id,
-        session_id  = req.session_id,
+        session_id  = session.id,
         content     = req.content,
         memory_type = req.memory_type,
         tags        = req.tags,
-        source_turn = req.source_turn,
     )
     return {"status": "written", "memory_id": record.id}
 
 
 @app.post("/memory/retrieve")
 async def retrieve_memory(req: RetrieveRequest):
-    results = await encoder.search(req.query, top_k=req.top_k)
+    results      = await encoder.search(req.query, top_k=req.top_k)
     user_results = [r for r in results if r["payload"].get("user_id") == req.user_id]
     for r in user_results:
         await db.update_access(r["memory_id"])
@@ -159,7 +158,7 @@ async def list_memories(user_id: str):
     return {"user_id": user_id, "count": len(records), "memories": [r.dict() for r in records]}
 
 
-@app.post("/sessions/{user_id}")
+@app.get("/sessions/{user_id}")
 async def list_sessions(user_id: str):
     sessions = await session_store.list_sessions(user_id)
     return {"user_id": user_id, "sessions": [s.dict() for s in sessions]}
