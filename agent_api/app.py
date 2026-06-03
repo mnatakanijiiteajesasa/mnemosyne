@@ -15,13 +15,17 @@ from memory_engine.db import MemoryDB
 from memory_engine.writer import MemoryWriter
 from memory_engine.forgetting import ForgettingService
 from memory_engine.embeddings.encoder import EmbeddingEngine
+from memory_engine.session_store import SessionStore
 
 
 db:         MemoryDB         = None
 encoder:    EmbeddingEngine  = None
 writer:     MemoryWriter     = None
 forgetting: ForgettingService = None
+session_store: SessionStore     = None
 
+
+FORGET_EVERY_N_TURNS = 10
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,12 +41,12 @@ async def lifespan(app: FastAPI):
 
     await db.setup_indexes()
     await encoder.setup_collection()
+    await session_store.setup_indexes()
 
     yield
 
 
 app = FastAPI(title="Mnemosyne", version="0.2.0", lifespan=lifespan)
-
 
 
 # Request models
@@ -58,12 +62,24 @@ class WriteRequest(BaseModel):
 
 class RetrieveRequest(BaseModel):
     user_id: str
+    session_id: Optional[str] = None
     query:   str
     top_k:   int = 5
 
 class TickRequest(BaseModel):
     user_id: str
 
+ 
+class TurnRequest(BaseModel):
+    """
+    Main entry point per conversation turn.
+    Ticks the session, ages memories, runs forgetting every N turns.
+    """
+    user_id:    str
+    session_id: Optional[str] = None
+    memories:   list[dict] = []   # [{content, memory_type, tags}]
+    query:      str = ""
+    top_k:      int = 5
 
 # Endpoints
 
@@ -147,4 +163,3 @@ async def list_memories(user_id: str):
 async def list_sessions(user_id: str):
     sessions = await session_store.list_sessions(user_id)
     return {"user_id": user_id, "sessions": [s.dict() for s in sessions]}
-    
