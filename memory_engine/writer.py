@@ -7,7 +7,7 @@ Write pipeline: encode -> store in Qdrant -> persist in MongoDB.
 from __future__ import annotations
 
 from .models import MemoryRecord, MemoryType
-from .mongo import MemoryDB
+from .db import MemoryDB
 from embeddings.encoder import EmbeddingEngine
 
 
