@@ -11,7 +11,7 @@ Replaced by the learned survival classifier in Phase 7.
 from __future__ import annotations
 
 from .decay import should_prune
-from .mongo import MemoryDB
+from .db import MemoryDB
 
 
 class ForgettingService:

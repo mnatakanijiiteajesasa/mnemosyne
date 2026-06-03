@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./agent_api:/app/agent_api
+      - .:/app
     depends_on:
       postgres:
         condition: service_healthy

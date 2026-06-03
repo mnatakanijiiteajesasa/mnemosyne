@@ -14,7 +14,7 @@ from memory_engine.models import MemoryType
 from memory_engine.db import MemoryDB
 from memory_engine.writer import MemoryWriter
 from memory_engine.forgetting import ForgettingService
-from embeddings.encoder import EmbeddingEngine
+from memory_engine.embeddings.encoder import EmbeddingEngine
 
 
 db:         MemoryDB         = None

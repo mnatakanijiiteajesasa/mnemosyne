@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from .models import MemoryRecord, MemoryType
 from .db import MemoryDB
-from embeddings.encoder import EmbeddingEngine
+from .embeddings.encoder import EmbeddingEngine
 
 
 def estimate_importance(content: str, memory_type: MemoryType) -> float:
