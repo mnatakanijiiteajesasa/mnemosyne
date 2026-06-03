@@ -71,6 +71,49 @@ class TickRequest(BaseModel):
 def health():
     return {"status": "ok", "version": "0.2.0"}
 
+@app.post("/turn")
+async def process_turn(req: TurnRequest):
+    # 1. Get or create session
+    session = await session_store.get_or_create(req.user_id, req.session_id)
+    turn    = await session_store.tick(session.id)
+ 
+    # 2. Age all memories
+    await db.tick_turns(req.user_id)
+ 
+    # 3. Write any new memories from this turn
+    written = []
+    for m in req.memories:
+        record = await writer.write(
+            user_id     = req.user_id,
+            session_id  = session.id,
+            content     = m["content"],
+            memory_type = MemoryType(m["memory_type"]),
+            tags        = m.get("tags", []),
+            source_turn = turn,
+        )
+        written.append(record.id)
+ 
+    # 4. Retrieve relevant context
+    retrieved = []
+    if req.query:
+        results = await encoder.search(req.query, top_k=req.top_k)
+        retrieved = [r for r in results if r["payload"].get("user_id") == req.user_id]
+        for r in retrieved:
+            await db.update_access(r["memory_id"])
+ 
+    # 5. Run forgetting every N turns
+    archived = []
+    if turn % FORGET_EVERY_N_TURNS == 0:
+        archived = await forgetting.run(req.user_id)
+ 
+    return {
+        "session_id": session.id,
+        "turn":       turn,
+        "written":    written,
+        "retrieved":  retrieved,
+        "archived":   archived,
+    }
+ 
 
 @app.post("/memory/write")
 async def write_memory(req: WriteRequest):
@@ -100,9 +143,8 @@ async def list_memories(user_id: str):
     return {"user_id": user_id, "count": len(records), "memories": [r.dict() for r in records]}
 
 
-@app.post("/memory/tick")
-async def tick(req: TickRequest):
-    """Age all memories by one turn and run the forgetting pass."""
-    await db.tick_turns(req.user_id)
-    archived = await forgetting.run(req.user_id)
-    return {"ticked": True, "archived": archived}
+@app.post("/sessions/{user_id}")
+async def list_sessions(user_id: str):
+    sessions = await session_store.list_sessions(user_id)
+    return {"user_id": user_id, "sessions": [s.dict() for s in sessions]}
+    
