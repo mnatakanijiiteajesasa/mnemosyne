@@ -16,10 +16,12 @@ from memory_engine.writer import MemoryWriter
 from memory_engine.forgetting import ForgettingService
 from memory_engine.session_store import SessionStore
 from memory_engine.embeddings.encoder import EmbeddingEngine
+from gnn_engine.graph import GraphBuilder
 
 
 db:           MemoryDB          = None
 encoder:      EmbeddingEngine   = None
+graph:        GraphBuilder     = None
 writer:       MemoryWriter      = None
 forgetting:   ForgettingService = None
 session_store: SessionStore     = None
@@ -36,12 +38,14 @@ async def lifespan(app: FastAPI):
 
     db            = MemoryDB(mongo_url)
     encoder       = EmbeddingEngine(qdrant_url)
+    graph        = GraphBuilder(mongo_url, qdrant_url)
     writer        = MemoryWriter(db, encoder)
     forgetting    = ForgettingService(db)
     session_store = SessionStore(mongo_url)
 
     await db.setup_indexes()
     await encoder.setup_collection()
+    await graph.setup_indexes()
     await session_store.setup_indexes()
 
     yield

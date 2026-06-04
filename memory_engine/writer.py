@@ -9,7 +9,7 @@ from __future__ import annotations
 from .models import MemoryRecord, MemoryType
 from .db import MemoryDB
 from .embeddings.encoder import EmbeddingEngine
-
+from gnn_engine.graph import GraphBuilder
 
 def estimate_importance(content: str, memory_type: MemoryType) -> float:
     base = {
@@ -26,9 +26,10 @@ def estimate_importance(content: str, memory_type: MemoryType) -> float:
 
 
 class MemoryWriter:
-    def __init__(self, db: MemoryDB, encoder: EmbeddingEngine):
+    def __init__(self, db: MemoryDB, encoder: EmbeddingEngine, graph: GraphBuilder):
         self._db      = db
         self._encoder = encoder
+        self._graph   = graph
 
     async def write(
         self,
@@ -68,5 +69,8 @@ class MemoryWriter:
 
         # 4. Link embedding back in MongoDB
         await self._db.set_embedding_id(record.id, record.id)
+       
+        #5. Build graph edges to similar memories
+        await self._graph.build_edges(record.id, user_id)
 
         return record
