@@ -9,7 +9,7 @@ from __future__ import annotations
 from .models import MemoryRecord, MemoryType
 from .db import MemoryDB
 from .embeddings.encoder import EmbeddingEngine
-from gnn_engine.graph import GraphBuilder
+from .gnn_engine.graph import GraphBuilder
 
 def estimate_importance(content: str, memory_type: MemoryType) -> float:
     base = {

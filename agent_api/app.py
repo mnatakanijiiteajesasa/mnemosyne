@@ -16,7 +16,7 @@ from memory_engine.writer import MemoryWriter
 from memory_engine.forgetting import ForgettingService
 from memory_engine.session_store import SessionStore
 from memory_engine.embeddings.encoder import EmbeddingEngine
-from gnn_engine.graph import GraphBuilder
+from memory_engine.gnn_engine.graph import GraphBuilder
 
 
 db:           MemoryDB          = None
