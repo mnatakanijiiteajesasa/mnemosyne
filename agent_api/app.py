@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     db            = MemoryDB(mongo_url)
     encoder       = EmbeddingEngine(qdrant_url)
     graph        = GraphBuilder(mongo_url, qdrant_url)
-    writer        = MemoryWriter(db, encoder)
+    writer        = MemoryWriter(db, encoder, graph)
     forgetting    = ForgettingService(db)
     session_store = SessionStore(mongo_url)
 
@@ -161,6 +161,12 @@ async def list_memories(user_id: str):
     records = await db.get_active(user_id)
     return {"user_id": user_id, "count": len(records), "memories": [r.dict() for r in records]}
 
+@app.get("/memory/graph/{user_id}")
+async def get_graph(user_id: str):
+    records = await db.get_active(user_id)
+    ids     = [r.id for r in records]
+    adj     = await graph.get_adjacency(ids)
+    return {"user_id": user_id, "nodes": ids, "edges": adj}
 
 @app.get("/sessions/{user_id}")
 async def list_sessions(user_id: str):
