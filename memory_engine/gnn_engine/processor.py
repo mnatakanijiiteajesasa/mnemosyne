@@ -26,10 +26,10 @@ from memory_engine.models import MemoryType
 
 # Memory type to one-hot index
 MEMORY_TYPE_MAP = {
-    MemoryType.preference: 0,
-    MemoryType.fact: 1,
-    MemoryType.episode: 2,
-    MemoryType.rule: 3,
+    MemoryType.PREFERENCE: 0,
+    MemoryType.FACT: 1,
+    MemoryType.EPISODE: 2,
+    MemoryType.RULE: 3,
 }
 
 COLLECTION_NAME = "memories"

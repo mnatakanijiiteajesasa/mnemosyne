@@ -133,7 +133,7 @@ async def process_turn(req: TurnRequest):
                     user_results,
                     alpha=0.6  # 60% GNN, 40% vector similarity
                     )
-                    retrieved = retrieved[:req.top_k]
+                retrieved = retrieved[:req.top_k]
             except Exception as e:
                 print(f"GNN re-ranking failed: {e}; using base retrieval")
                 retrieved = user_results[:req.top_k]
