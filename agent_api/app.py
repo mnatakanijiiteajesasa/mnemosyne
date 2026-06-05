@@ -25,13 +25,15 @@ graph:        GraphBuilder     = None
 writer:       MemoryWriter      = None
 forgetting:   ForgettingService = None
 session_store: SessionStore     = None
+gnn_processor: GraphProcessor = None
+gnn_engine: GNNInferenceEngine = None
 
 FORGET_EVERY_N_TURNS = 10
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, writer, forgetting, session_store
+    global db, encoder, writer, forgetting, session_store, gnn_processor, gnn_engine
 
     mongo_url  = os.getenv("MONGO_URL", "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
@@ -42,6 +44,9 @@ async def lifespan(app: FastAPI):
     writer        = MemoryWriter(db, encoder, graph)
     forgetting    = ForgettingService(db)
     session_store = SessionStore(mongo_url)
+    gnn_processor = GraphProcessor(mongo_url, qdrant_url)
+    gnn_engine    = GNNInferenceEngine(processor=gnn_processor, device="cpu")
+
 
     await db.setup_indexes()
     await encoder.setup_collection()
@@ -115,8 +120,27 @@ async def process_turn(req: TurnRequest):
     # 4. Retrieve relevant context
     retrieved = []
     if req.query:
-        results = await encoder.search(req.query, top_k=req.top_k)
-        retrieved = [r for r in results if r["payload"].get("user_id") == req.user_id]
+        #step 1: Initial retrieval with vector search
+        results = await encoder.search(req.query, top_k=req.top_k * 2) # 2 times to account for filtering 
+        user_results = [r for r in results if r["payload"].get("user_id") == req.user_id]
+
+        # Step 2: Re-rank with GNN (if user has memories)
+        if user_results:
+            try:
+                scorer = GNNRetrievalScorer(gnn_engine)
+                retrieved = await scorer.rerank_with_gnn(
+                    req.user_id,
+                    user_results,
+                    alpha=0.6  # 60% GNN, 40% vector similarity
+                    )
+                    retrieved = retrieved[:req.top_k]
+            except Exception as e:
+                print(f"GNN re-ranking failed: {e}; using base retrieval")
+                retrieved = user_results[:req.top_k]
+        else:
+            retrieved = user_results[:req.top_k]
+ 
+        #update access count for retrieved memories
         for r in retrieved:
             await db.update_access(r["memory_id"])
 
