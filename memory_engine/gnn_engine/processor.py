@@ -27,9 +27,9 @@ from memory_engine.models import MemoryType
 # Memory type to one-hot index
 MEMORY_TYPE_MAP = {
     MemoryType.PREFERENCE: 0,
-    MemoryType.FACT: 1,
-    MemoryType.EPISODE: 2,
-    MemoryType.RULE: 3,
+    MemoryType.FACT:       1,
+    MemoryType.EPISODE:    2,
+    MemoryType.RULE:       3,
 }
 
 COLLECTION_NAME = "memories"
@@ -89,7 +89,7 @@ class GraphProcessor:
         """Fetch all active (not archived) memories for a user."""
         cursor = self._memories_col.find({
             "user_id": user_id,
-            "archived": False,
+            "status": "active",
         })
         return [doc async for doc in cursor]
 
@@ -115,7 +115,7 @@ class GraphProcessor:
         embedding_dict = {mid: emb for mid, emb in zip(memory_ids, embeddings)}
 
         # Normalize for log-scale features
-        max_age = max([m.get("age_turns", 1) for m in memories] + [1])
+        max_age = max([m.get("turns_since_access", 1) for m in memories] + [1])
         max_access = max([m.get("access_count", 1) for m in memories] + [1])
 
         for i, mem in enumerate(memories):
@@ -135,11 +135,11 @@ class GraphProcessor:
             features[i, 384 + type_idx] = 1.0
 
             # Importance [388] - already in 0-1 range
-            importance = mem.get("importance", 0.5)
+            importance = mem.get("importance_score", 0.5)
             features[i, 388] = min(1.0, max(0.0, importance))
 
             # Age turns [389] - normalize with log scale
-            age = mem.get("age_turns", 0)
+            age = mem.get("turns_since_access", 0)
             normalized_age = np.log1p(age) / np.log1p(max_age + 1)
             features[i, 389] = normalized_age
 
@@ -254,9 +254,9 @@ class GraphProcessor:
         for i, mid in enumerate(data.memory_ids):
             mem = memory_id_to_mem[mid]
 
-            # Relevance heuristic: access_count > 2 or importance > 0.7
+            # Relevance heuristic: access_count > 2 or importance_score > 0.7
             access_count = mem.get("access_count", 0)
-            importance = mem.get("importance", 0.5)
+            importance = mem.get("importance_score", 0.5)
             if access_count > 2 or importance > 0.7:
                 relevance_labels[i] = 1
 
