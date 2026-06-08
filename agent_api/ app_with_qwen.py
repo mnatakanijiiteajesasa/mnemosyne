@@ -1,5 +1,5 @@
 """
-agent_api/main.py
+agent_api/app.py
 """
 
 from __future__ import annotations
@@ -17,37 +17,34 @@ from memory_engine.forgetting import ForgettingService
 from memory_engine.session_store import SessionStore
 from memory_engine.embeddings.encoder import EmbeddingEngine
 from memory_engine.gnn_engine.graph import GraphBuilder
-from memory_engine.gnn_engine.processor import GraphProcessor
-from memory_engine.gnn_engine.inference import GNNInferenceEngine, GNNRetrievalScorer
+from memory_engine.llm_client import QwenClient      
 
-db:           MemoryDB          = None
-encoder:      EmbeddingEngine   = None
-graph:        GraphBuilder     = None
-writer:       MemoryWriter      = None
-forgetting:   ForgettingService = None
-session_store: SessionStore     = None
-gnn_processor: GraphProcessor = None
-gnn_engine: GNNInferenceEngine = None
+
+db:            MemoryDB          = None
+encoder:       EmbeddingEngine   = None
+graph:         GraphBuilder      = None
+writer:        MemoryWriter      = None
+forgetting:    ForgettingService = None
+session_store: SessionStore      = None
+llm:           QwenClient        = None                  # NEW
 
 FORGET_EVERY_N_TURNS = 10
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, writer, forgetting, session_store, gnn_processor, gnn_engine
+    global db, encoder, graph, writer, forgetting, session_store, llm
 
-    mongo_url  = os.getenv("MONGO_URL", "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
+    mongo_url  = os.getenv("MONGO_URL",  "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
 
     db            = MemoryDB(mongo_url)
     encoder       = EmbeddingEngine(qdrant_url)
-    graph        = GraphBuilder(mongo_url, qdrant_url)
+    graph         = GraphBuilder(mongo_url, qdrant_url)
     writer        = MemoryWriter(db, encoder, graph)
     forgetting    = ForgettingService(db)
     session_store = SessionStore(mongo_url)
-    gnn_processor = GraphProcessor(mongo_url, qdrant_url)
-    gnn_engine    = GNNInferenceEngine(processor=gnn_processor, device="cpu")
-
+    llm           = QwenClient()                         # NEW — reads from .env
 
     await db.setup_indexes()
     await encoder.setup_collection()
@@ -57,11 +54,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Mnemosyne", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="Mnemosyne", version="0.4.0", lifespan=lifespan)
 
 
-# Request models
-
+# ── Request models ─────────────────────────────────────────────────────────────
 
 class WriteRequest(BaseModel):
     user_id:     str
@@ -70,30 +66,33 @@ class WriteRequest(BaseModel):
     memory_type: MemoryType
     tags:        list[str] = []
 
+
 class RetrieveRequest(BaseModel):
     user_id:    str
     session_id: Optional[str] = None
     query:      str
     top_k:      int = 5
 
+
 class TurnRequest(BaseModel):
     """
     Main entry point per conversation turn.
-    Ticks the session, ages memories, runs forgetting every N turns.
+    Ticks the session, ages memories, runs forgetting every N turns,
+    retrieves context, and calls Qwen with memory-injected prompt.
     """
     user_id:    str
     session_id: Optional[str] = None
     memories:   list[dict] = []   # [{content, memory_type, tags}]
     query:      str = ""
     top_k:      int = 5
+    history:    list[dict] = []   # NEW — [{"role": "user"|"assistant", "content": "..."}]
 
 
-# Endpoints
-
+# ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.3.0"}
+    return {"status": "ok", "version": "0.4.0"}
 
 
 @app.post("/turn")
@@ -118,34 +117,24 @@ async def process_turn(req: TurnRequest):
         )
         written.append(record.id)
 
-    # 4. Retrieve relevant context
+    # 4. Retrieve relevant memories
     retrieved = []
     if req.query:
-        #step 1: Initial retrieval with vector search
-        results = await encoder.search(req.query, top_k=req.top_k * 2) # 2 times to account for filtering 
-        user_results = [r for r in results if r["payload"].get("user_id") == req.user_id]
-
-        # Step 2: Re-rank with GNN (if user has memories)
-        if user_results:
-            try:
-                scorer = GNNRetrievalScorer(gnn_engine)
-                retrieved = await scorer.rerank_with_gnn(
-                    req.user_id,
-                    user_results,
-                    alpha=0.6  # 60% GNN, 40% vector similarity
-                    )
-                retrieved = retrieved[:req.top_k]
-            except Exception as e:
-                print(f"GNN re-ranking failed: {e}; using base retrieval")
-                retrieved = user_results[:req.top_k]
-        else:
-            retrieved = user_results[:req.top_k]
- 
-        #update access count for retrieved memories
+        results   = await encoder.search(req.query, top_k=req.top_k)
+        retrieved = [r for r in results if r["payload"].get("user_id") == req.user_id]
         for r in retrieved:
             await db.update_access(r["memory_id"])
 
-    # 5. Run forgetting every N turns
+    # 5. Call Qwen with memory-injected prompt              NEW
+    reply = ""
+    if req.query:
+        reply = await llm.chat(
+            user_message       = req.query,
+            retrieved_memories = retrieved,
+            conversation_history = req.history,
+        )
+
+    # 6. Run forgetting every N turns
     archived = []
     if turn % FORGET_EVERY_N_TURNS == 0:
         archived = await forgetting.run(req.user_id)
@@ -156,6 +145,7 @@ async def process_turn(req: TurnRequest):
         "written":    written,
         "retrieved":  retrieved,
         "archived":   archived,
+        "reply":      reply,             # NEW — Qwen's response
     }
 
 
@@ -186,12 +176,14 @@ async def list_memories(user_id: str):
     records = await db.get_active(user_id)
     return {"user_id": user_id, "count": len(records), "memories": [r.dict() for r in records]}
 
+
 @app.get("/memory/graph/{user_id}")
 async def get_graph(user_id: str):
     records = await db.get_active(user_id)
     ids     = [r.id for r in records]
     adj     = await graph.get_adjacency(ids)
     return {"user_id": user_id, "nodes": ids, "edges": adj}
+
 
 @app.get("/sessions/{user_id}")
 async def list_sessions(user_id: str):
