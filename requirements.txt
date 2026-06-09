@@ -19,9 +19,6 @@ pgvector==0.4.1
 pydantic-settings==2.6.1
 asyncpg==0.30.0
 
-#frameworks
-langchain==0.3.25
-langgraph==0.4.8
 
 #embeddings
 sentence-transformers==4.1.0
