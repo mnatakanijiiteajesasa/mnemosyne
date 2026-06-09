@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     writer        = MemoryWriter(db, encoder, graph)
     forgetting    = ForgettingService(db)
     session_store = SessionStore(mongo_url)
-    llm           = QwenClient()                         # NEW — reads from .env
+    llm           = QwenClient()                      
 
     await db.setup_indexes()
     await encoder.setup_collection()
