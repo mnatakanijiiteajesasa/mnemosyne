@@ -26,7 +26,7 @@ graph:         GraphBuilder      = None
 writer:        MemoryWriter      = None
 forgetting:    ForgettingService = None
 session_store: SessionStore      = None
-llm:           QwenClient        = None                  # NEW
+llm:           QwenClient        = None           
 
 FORGET_EVERY_N_TURNS = 10
 
@@ -56,8 +56,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Mnemosyne", version="0.4.0", lifespan=lifespan)
 
-
-# ── Request models ─────────────────────────────────────────────────────────────
+#Request models
 
 class WriteRequest(BaseModel):
     user_id:     str
@@ -88,7 +87,7 @@ class TurnRequest(BaseModel):
     history:    list[dict] = []   # NEW — [{"role": "user"|"assistant", "content": "..."}]
 
 
-# ── Endpoints ──────────────────────────────────────────────────────────────────
+# Endpoints 
 
 @app.get("/health")
 def health():
@@ -125,7 +124,7 @@ async def process_turn(req: TurnRequest):
         for r in retrieved:
             await db.update_access(r["memory_id"])
 
-    # 5. Call Qwen with memory-injected prompt              NEW
+    # 5. Call Qwen with memory-injected prompt 
     reply = ""
     if req.query:
         reply = await llm.chat(
