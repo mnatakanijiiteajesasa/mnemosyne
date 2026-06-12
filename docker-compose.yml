@@ -83,6 +83,19 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mnemosyne_frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   mongo_data:

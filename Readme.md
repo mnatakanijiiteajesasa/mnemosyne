@@ -4,13 +4,11 @@ MNEMOSYNE is a persistent memory AI agent system designed to maintain long-term 
 
 ## Overview
 
-The system implements a sophisticated memory architecture with multiple phases of development:
+The system implements a sophisticated memory architecture with a web-based frontend for interacting with the AI agent:
 
-- **Phase 1-5**: Core memory system with vector storage, basic retrieval, and GNN components
-- **Phase 6**: Intelligent Retrieval System (hybrid scoring with GNN relevance)
-- **Phase 7**: Learned Forgetting System (survival classifier with context-pressure eviction)
-- **Phase 8**: Autonomous Learning (interaction logging, offline retraining foundations)
-- **Phase 9**: Advanced Intelligence (planning, tool-usage, episodic summarization, etc.)
+- **Backend API** (FastAPI): handles memory storage, retrieval, processing, and LLM communication
+- **Frontend** (Streamlit): provides an interactive chat interface for users to converse with the agent
+- **Memory Engine**: core memory system with vector storage, graph relationships, and intelligent retrieval/forgetting
 
 ## Key Features
 
@@ -22,10 +20,14 @@ The system implements a sophisticated memory architecture with multiple phases o
 - **Context-Pressure Eviction**: Dynamic forgetting thresholds based on system load
 - **Autonomous Learning Foundation**: Comprehensive interaction logging for model improvement
 - **Advanced Intelligence**: Episodic summarization, semantic compression, shared memory, reasoning chains
+- **Web Interface**: Streamlit-based chat application for easy interaction with the AI agent
 
 ## Architecture
 
 ```
+• Frontend Layer (Streamlit)
+  └─ Chat interface for user interaction
+
 • API Layer (FastAPI)
   ├─ Memory Write Endpoints
   ├─ Memory Retrieval Endpoints (Hybrid)
@@ -49,10 +51,10 @@ The system implements a sophisticated memory architecture with multiple phases o
 ## Installation
 
 1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
+2. Install dependencies: `pip install -r requirements.txt` (for backend development)
+   - Frontend dependencies are in `frontend/requirements.txt`
 3. Set up environment variables in `.env` file
-4. Start required services (MongoDB, Qdrant, PostgreSQL, Redis) via Docker Compose
-5. Launch the API: `uvicorn agent_api.app:app --host 0.0.0.0 --port 8000`
+4. Start required services via Docker Compose (recommended for full stack)
 
 ## Environment Variables
 
@@ -62,6 +64,7 @@ See `.env.example` for required variables including:
 - Model paths (GNN, survival classifier)
 - Forgetting parameters (thresholds, watermarks)
 - Retrieval settings (cache sizes, hybrid weights)
+- Frontend-backend communication (BACKEND_URL for frontend)
 
 ## API Endpoints
 
@@ -95,12 +98,23 @@ pytest tests/test_gnn.py -v
 
 ## Docker Deployment
 
-The project includes docker-compose.yml for easy deployment of all required services:
-- API (FastAPI)
+The project includes `docker-compose.yml` for easy deployment of all required services:
+- API (FastAPI) on port 8000
+- Frontend (Streamlit) on port 8501
 - MongoDB (memory storage)
 - Qdrant (vector storage)
 - PostgreSQL/pgvector (future extensions)
 - Redis (caching)
+
+To run the full stack:
+```bash
+docker compose up --build
+```
+
+Then access:
+- **Frontend**: http://localhost:8501
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
 
 ## License
 
@@ -110,9 +124,9 @@ MIT License
 
 Built with:
 - FastAPI
+- Streamlit
 - SentenceTransformers
 - Qdrant
 - PyTorch Geometric (GNN)
 - MongoDB
 - Qwen LLM (Alibaba Cloud)
-

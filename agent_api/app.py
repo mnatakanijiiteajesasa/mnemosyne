@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from memory_engine.models import MemoryType
@@ -90,7 +91,16 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Mnemosyne", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="Mnemosyne", version="0.6.0", lifespan=lifespan)
+
+# CORS middleware to allow frontend to communicate with backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Request models
 
