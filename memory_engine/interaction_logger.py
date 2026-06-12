@@ -26,7 +26,7 @@ class InteractionLogger:
             db_name: Database name
         """
         self._client = AsyncIOMotorClient(mongo_url)
-        self._db = self._db[db_name]
+        self._db = self._client[db_name]
         self._collection = self._db["interaction_logs"]
 
     async def setup_indexes(self):
