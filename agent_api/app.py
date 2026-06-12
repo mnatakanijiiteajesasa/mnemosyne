@@ -39,7 +39,13 @@ async def lifespan(app: FastAPI):
 
     mongo_url  = os.getenv("MONGO_URL",  "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
-    model_path = os.getenv("GNN_MODEL_PATH", None)  # Optional GNN model path
+    gnn_model_path = os.getenv("GNN_MODEL_PATH", None)  # Optional GNN model path
+    survival_model_path = os.getenv("SURVIVAL_MODEL_PATH", None)  # Optional survival classifier model path
+    survival_threshold = float(os.getenv("SURVIVAL_THRESHOLD", "0.5"))
+    # Context-pressure watermarks from env (optional)
+    high_watermark = int(os.getenv("FORGETTING_HIGH_WATERMARK", "1000"))
+    low_watermark = int(os.getenv("FORGETTING_LOW_WATERMARK", "100"))
+    pressure_shift = float(os.getenv("FORGETTING_PRESSURE_SHIFT", "0.1"))
 
     db            = MemoryDB(mongo_url)
     encoder       = EmbeddingEngine(qdrant_url)
@@ -48,13 +54,22 @@ async def lifespan(app: FastAPI):
     hybrid_retrieval = create_hybrid_retrieval_engine(
         mongo_url=mongo_url,
         qdrant_url=qdrant_url,
-        model_path=model_path,
+        model_path=gnn_model_path,
         device="cpu",  # Could make this configurable
         cache_size=1000,
         enable_cache=True
     )
     writer        = MemoryWriter(db, encoder, graph)
-    forgetting    = ForgettingService(db)
+    # Initialize forgetting service with learned model option
+    forgetting    = ForgettingService(
+        db=db,
+        model_path=survival_model_path,
+        device="cpu",
+        survival_threshold=survival_threshold,
+        high_watermark=high_watermark,
+        low_watermark=low_watermark,
+        pressure_survival_threshold_shift=pressure_shift,
+    )
     session_store = SessionStore(mongo_url)
     llm           = QwenClient()
 
