@@ -32,7 +32,7 @@ RESET = "\033[0m"
 results: list[tuple[str, bool, str]] = []
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers 
 
 def log(label: str, passed: bool, detail: str = ""):
     results.append((label, passed, detail))
@@ -61,7 +61,7 @@ async def get(client: httpx.AsyncClient, path: str) -> dict:
     return r.json()
 
 
-# ── Test Groups ────────────────────────────────────────────────────────────────
+# Test Groups 
 
 async def test_health(client: httpx.AsyncClient):
     section("1. Health Check")
@@ -230,11 +230,13 @@ async def test_multi_turn_memory(client: httpx.AsyncClient):
             "query":    "Hello",
         })
         t1_turn = t1.get("turn")
+        session_id = t1.get("session_id")
         log("Turn 1 created", t1_turn == 1, f"turn={t1_turn}")
 
         # Turn 2: ask something that requires the memory
         t2 = await post(client, "/turn", {
             "user_id":  user,
+            "session_id": session_id,
             "memories": [],
             "query":    "What is my name?",
             "history":  [
@@ -371,7 +373,7 @@ async def test_session_list(client: httpx.AsyncClient):
         log("Session list", False, str(e))
 
 
-# ── Summary ────────────────────────────────────────────────────────────────────
+# Summary 
 
 def print_summary():
     section("RESULTS")
@@ -395,7 +397,7 @@ def print_summary():
     return len(failed) == 0
 
 
-# ── Runner ─────────────────────────────────────────────────────────────────────
+# Runner 
 
 async def run():
     print(f"\n{BOLD}MNEMOSYNE INTEGRATION TESTS{RESET}")
