@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from sentence_transformers import SentenceTransformer
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
 
 
 COLLECTION_NAME = "memories"
@@ -34,16 +34,14 @@ class EmbeddingEngine:
                 vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
             )
 
-    # ------------------------------------------------------------------
     # Encode
-    # ------------------------------------------------------------------
-
+   
     def encode(self, text: str) -> list[float]:
         return self._model.encode(text, normalize_embeddings=True).tolist()
 
-    # ------------------------------------------------------------------
+   
     # Store
-    # ------------------------------------------------------------------
+    
 
     async def store(self, memory_id: str, text: str, payload: dict) -> str:
         """
@@ -60,18 +58,31 @@ class EmbeddingEngine:
         await self._qdrant.upsert(collection_name=COLLECTION_NAME, points=[point])
         return memory_id
 
-    # ------------------------------------------------------------------
-    # Search
-    # ------------------------------------------------------------------
 
-    async def search(self, query: str, top_k: int = 5) -> list[dict]:
+    # Search
+    
+
+    async def search(self, query: str, top_k: int = 5, user_id: str = None) -> list[dict]:
         """
         Returns list of {memory_id, score, payload} dicts.
+        If user_id is provided, results are filtered to that user at the Qdrant level for efficiency.
+        Not after retrievakl filtering, which is less efficient.
         """
         vector  = self.encode(query)
+        query_filter = None
+        if user_id is not None:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="user_id",
+                        match=MatchValue(value=user_id),
+                    )
+                ]
+            )
         results = await self._qdrant.search(
             collection_name=COLLECTION_NAME,
             query_vector=vector,
+            query_filter=query_filter,
             limit=top_k,
             with_payload=True,
         )
