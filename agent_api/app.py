@@ -119,8 +119,8 @@ async def process_turn(req: TurnRequest):
     # 4. Retrieve relevant memories
     retrieved = []
     if req.query:
-        results   = await encoder.search(req.query, top_k=req.top_k)
-        retrieved = [r for r in results if r["payload"].get("user_id") == req.user_id]
+       # results   = await encoder.search(req.query, top_k=req.top_k)
+        retrieved = await encoder.search(req.query, top_k=req.top_k, user_id=req.user_id)
         for r in retrieved:
             await db.update_access(r["memory_id"])
 
@@ -163,8 +163,8 @@ async def write_memory(req: WriteRequest):
 
 @app.post("/memory/retrieve")
 async def retrieve_memory(req: RetrieveRequest):
-    results      = await encoder.search(req.query, top_k=req.top_k)
-    user_results = [r for r in results if r["payload"].get("user_id") == req.user_id]
+    # results      = await encoder.search(req.query, top_k=req.top_k)
+    user_results = await encoder.search(req.query, top_k=req.top_k, user_id=req.user_id)     # [r for r in results if r["payload"].get("user_id") == req.user_id]
     for r in user_results:
         await db.update_access(r["memory_id"])
     return {"query": req.query, "results": user_results}
