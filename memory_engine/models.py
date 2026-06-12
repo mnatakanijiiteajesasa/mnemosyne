@@ -18,6 +18,8 @@ class MemoryType(str, Enum):
     FACT       = "fact"         # stable factual info about the user
     EPISODE    = "episode"      # a specific event in a conversation
     RULE       = "rule"         # a behavioural directive for the agent
+    PLANNING   = "planning"     # strategic plans and intentions
+    TOOL_USAGE = "tool_usage"   # history of tool usage and outcomes
 
 
 class MemoryStatus(str, Enum):

@@ -20,6 +20,7 @@ from memory_engine.gnn_engine.graph import GraphBuilder
 from memory_engine.llm_client import QwenClient
 from memory_engine.hybrid_retrieval import HybridRetrievalEngine, create_hybrid_retrieval_engine
 from memory_engine.interaction_logger import InteractionLogger
+from memory_engine.episodic_summarizer import EpisodicSummarizer, create_episodic_summarizer
 
 
 db:            MemoryDB          = None
@@ -31,13 +32,14 @@ forgetting:    ForgettingService = None
 session_store: SessionStore      = None
 llm:           QwenClient        = None
 interaction_logger: InteractionLogger = None
+episodic_summarizer: EpisodicSummarizer = None
 
 FORGET_EVERY_N_TURNS = 10
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm, interaction_logger
+    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm, interaction_logger, episodic_summarizer
 
     mongo_url  = os.getenv("MONGO_URL",  "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
@@ -76,6 +78,8 @@ async def lifespan(app: FastAPI):
     llm           = QwenClient()
     # Initialize interaction logger
     interaction_logger = InteractionLogger(mongo_url)
+    # Initialize episodic summarizer
+    episodic_summarizer = create_episodic_summarizer(llm)
 
     await db.setup_indexes()
     await encoder.setup_collection()
@@ -123,7 +127,7 @@ class TurnRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.5.0"}
+    return {"status": "ok", "version": "0.6.0"}
 
 
 @app.post("/turn")
@@ -148,7 +152,42 @@ async def process_turn(req: TurnRequest):
         )
         written.append(record.id)
 
-    # 4. Retrieve relevant memories using hybrid retrieval
+    # 4. Optionally create episodic summary from conversation history
+    summary_written = []
+    if req.history and len(req.history) > 0 and episodic_summarizer:
+        try:
+            summary_data = await episodic_summarizer.summarize_conversation(
+                conversation_history=req.history,
+                user_id=req.user_id,
+                session_id=session.id,
+                max_length=200,
+            )
+            if summary_data:
+                # Create the summary memory
+                summary_record = await writer.write(
+                    user_id     = req.user_id,
+                    session_id  = session.id,
+                    content     = summary_data["content"],
+                    memory_type = MemoryType(summary_data["memory_type"]),
+                    tags        = summary_data.get("tags", []),
+                    source_turn = turn,
+                    importance_score = summary_data.get("importance_score", 0.6),
+                )
+                summary_written.append(summary_record.id)
+        except Exception as e:
+            # Log error but don't fail the turn
+            await interaction_logger.log_turn(
+                user_id=req.user_id,
+                session_id=session.id,
+                query=req.query,
+                top_k=req.top_k,
+                memories_written=written,
+                memories_retrieved=[],
+                reply=f"Error creating episodic summary: {str(e)}",
+                archived_count=0,
+            )
+
+    # 5. Retrieve relevant memories using hybrid retrieval
     retrieved = []
     if req.query:
         retrieved = await hybrid_retrieval.search(
@@ -160,7 +199,7 @@ async def process_turn(req: TurnRequest):
         for r in retrieved:
             await db.update_access(r["memory_id"])
 
-    # 5. Call Qwen with memory-injected prompt
+    # 6. Call Qwen with memory-injected prompt
     reply = ""
     if req.query:
         reply = await llm.chat(
@@ -169,18 +208,18 @@ async def process_turn(req: TurnRequest):
             conversation_history = req.history,
         )
 
-    # 6. Run forgetting every N turns
+    # 7. Run forgetting every N turns
     archived = []
     if turn % FORGET_EVERY_N_TURNS == 0:
         archived = await forgetting.run(req.user_id)
 
-    # 7. Log the interaction
+    # 8. Log the interaction
     await interaction_logger.log_turn(
         user_id=req.user_id,
         session_id=session.id,
         query=req.query,
         top_k=req.top_k,
-        memories_written=written,
+        memories_written=written + summary_written,
         memories_retrieved=retrieved,
         reply=reply,
         archived_count=len(archived),
@@ -189,7 +228,7 @@ async def process_turn(req: TurnRequest):
     return {
         "session_id": session.id,
         "turn":       turn,
-        "written":    written,
+        "written":    written + summary_written,
         "retrieved":  retrieved,
         "archived":   archived,
         "reply":      reply,             # NEW — Qwen's response
