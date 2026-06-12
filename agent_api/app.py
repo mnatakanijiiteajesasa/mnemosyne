@@ -17,34 +17,46 @@ from memory_engine.forgetting import ForgettingService
 from memory_engine.session_store import SessionStore
 from memory_engine.embeddings.encoder import EmbeddingEngine
 from memory_engine.gnn_engine.graph import GraphBuilder
-from memory_engine.llm_client import QwenClient      
+from memory_engine.llm_client import QwenClient
+from memory_engine.hybrid_retrieval import HybridRetrievalEngine, create_hybrid_retrieval_engine
 
 
 db:            MemoryDB          = None
 encoder:       EmbeddingEngine   = None
 graph:         GraphBuilder      = None
+hybrid_retrieval: HybridRetrievalEngine = None
 writer:        MemoryWriter      = None
 forgetting:    ForgettingService = None
 session_store: SessionStore      = None
-llm:           QwenClient        = None           
+llm:           QwenClient        = None
 
 FORGET_EVERY_N_TURNS = 10
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, graph, writer, forgetting, session_store, llm
+    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm
 
     mongo_url  = os.getenv("MONGO_URL",  "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
+    model_path = os.getenv("GNN_MODEL_PATH", None)  # Optional GNN model path
 
     db            = MemoryDB(mongo_url)
     encoder       = EmbeddingEngine(qdrant_url)
     graph         = GraphBuilder(mongo_url, qdrant_url)
+    # Initialize hybrid retrieval system
+    hybrid_retrieval = create_hybrid_retrieval_engine(
+        mongo_url=mongo_url,
+        qdrant_url=qdrant_url,
+        model_path=model_path,
+        device="cpu",  # Could make this configurable
+        cache_size=1000,
+        enable_cache=True
+    )
     writer        = MemoryWriter(db, encoder, graph)
     forgetting    = ForgettingService(db)
     session_store = SessionStore(mongo_url)
-    llm           = QwenClient()                      
+    llm           = QwenClient()
 
     await db.setup_indexes()
     await encoder.setup_collection()
@@ -54,9 +66,9 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Mnemosyne", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Mnemosyne", version="0.5.0", lifespan=lifespan)
 
-#Request models
+# Request models
 
 class WriteRequest(BaseModel):
     user_id:     str
@@ -87,11 +99,11 @@ class TurnRequest(BaseModel):
     history:    list[dict] = []   # NEW — [{"role": "user"|"assistant", "content": "..."}]
 
 
-# Endpoints 
+# Endpoints
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.4.0"}
+    return {"status": "ok", "version": "0.5.0"}
 
 
 @app.post("/turn")
@@ -116,15 +128,19 @@ async def process_turn(req: TurnRequest):
         )
         written.append(record.id)
 
-    # 4. Retrieve relevant memories
+    # 4. Retrieve relevant memories using hybrid retrieval
     retrieved = []
     if req.query:
-       # results   = await encoder.search(req.query, top_k=req.top_k)
-        retrieved = await encoder.search(req.query, top_k=req.top_k, user_id=req.user_id)
+        retrieved = await hybrid_retrieval.search(
+            query=req.query,
+            user_id=req.user_id,
+            top_k=req.top_k,
+            use_hybrid=True  # Use hybrid scoring when available
+        )
         for r in retrieved:
             await db.update_access(r["memory_id"])
 
-    # 5. Call Qwen with memory-injected prompt 
+    # 5. Call Qwen with memory-injected prompt
     reply = ""
     if req.query:
         reply = await llm.chat(
@@ -163,8 +179,13 @@ async def write_memory(req: WriteRequest):
 
 @app.post("/memory/retrieve")
 async def retrieve_memory(req: RetrieveRequest):
-    # results      = await encoder.search(req.query, top_k=req.top_k)
-    user_results = await encoder.search(req.query, top_k=req.top_k, user_id=req.user_id)     # [r for r in results if r["payload"].get("user_id") == req.user_id]
+    # Use hybrid retrieval instead of direct encoder search
+    user_results = await hybrid_retrieval.search(
+        query=req.query,
+        user_id=req.user_id,
+        top_k=req.top_k,
+        use_hybrid=True
+    )
     for r in user_results:
         await db.update_access(r["memory_id"])
     return {"query": req.query, "results": user_results}
