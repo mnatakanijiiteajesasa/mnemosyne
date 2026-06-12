@@ -3,6 +3,7 @@ import requests
 import os
 import json
 from datetime import datetime
+import uuid
 
 # Configuration
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -13,17 +14,33 @@ st.set_page_config(
     layout="wide"
 )
 
+# Auto-generated user/session IDs
+if "user_id" not in st.session_state:
+    st.session_state.user_id = f"user_{str(uuid.uuid4())[:8]}"
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = f"session_{str(uuid.uuid4())[:8]}"
+
 st.title("🧠 Mnemosyne AI Agent")
 st.caption("Persistent memory AI agent")
 
-# Sidebar for user/session configuration
+# Sidebar for new chat/refresh controls
 with st.sidebar:
-    st.header("Configuration")
-    user_id = st.text_input("User ID", value="demo_user")
-    session_id = st.text_input("Session ID (optional)", value="")
-    if st.button("Clear Chat"):
-        st.session_state.messages = []
-        st.experimental_rerun()
+    st.header("Controls")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💬 New Chat", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.session_id = f"session_{str(uuid.uuid4())[:8]}"
+            st.experimental_rerun()
+    with col2:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.experimental_rerun()
+
+    # Show current session info (optional, for debugging)
+    with st.expander("Session Info"):
+        st.text(f"User ID: {st.session_state.user_id}")
+        st.text(f"Session ID: {st.session_state.session_id}")
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -43,8 +60,8 @@ if prompt := st.chat_input("What's on your mind?"):
 
     # Prepare request to backend
     turn_data = {
-        "user_id": user_id,
-        "session_id": session_id if session_id else None,
+        "user_id": st.session_state.user_id,
+        "session_id": st.session_state.session_id,
         "memories": [],  # No explicit memories from UI for now
         "query": prompt,
         "top_k": 5,
