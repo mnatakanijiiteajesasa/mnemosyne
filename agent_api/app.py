@@ -19,6 +19,7 @@ from memory_engine.embeddings.encoder import EmbeddingEngine
 from memory_engine.gnn_engine.graph import GraphBuilder
 from memory_engine.llm_client import QwenClient
 from memory_engine.hybrid_retrieval import HybridRetrievalEngine, create_hybrid_retrieval_engine
+from memory_engine.interaction_logger import InteractionLogger
 
 
 db:            MemoryDB          = None
@@ -29,13 +30,14 @@ writer:        MemoryWriter      = None
 forgetting:    ForgettingService = None
 session_store: SessionStore      = None
 llm:           QwenClient        = None
+interaction_logger: InteractionLogger = None
 
 FORGET_EVERY_N_TURNS = 10
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm
+    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm, interaction_logger
 
     mongo_url  = os.getenv("MONGO_URL",  "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
@@ -72,11 +74,14 @@ async def lifespan(app: FastAPI):
     )
     session_store = SessionStore(mongo_url)
     llm           = QwenClient()
+    # Initialize interaction logger
+    interaction_logger = InteractionLogger(mongo_url)
 
     await db.setup_indexes()
     await encoder.setup_collection()
     await graph.setup_indexes()
     await session_store.setup_indexes()
+    await interaction_logger.setup_indexes()
 
     yield
 
@@ -169,6 +174,18 @@ async def process_turn(req: TurnRequest):
     if turn % FORGET_EVERY_N_TURNS == 0:
         archived = await forgetting.run(req.user_id)
 
+    # 7. Log the interaction
+    await interaction_logger.log_turn(
+        user_id=req.user_id,
+        session_id=session.id,
+        query=req.query,
+        top_k=req.top_k,
+        memories_written=written,
+        memories_retrieved=retrieved,
+        reply=reply,
+        archived_count=len(archived),
+    )
+
     return {
         "session_id": session.id,
         "turn":       turn,
@@ -189,6 +206,15 @@ async def write_memory(req: WriteRequest):
         memory_type = req.memory_type,
         tags        = req.tags,
     )
+    # Log the write operation
+    await interaction_logger.log_memory_write(
+        user_id=req.user_id,
+        session_id=session.id,
+        content=req.content,
+        memory_type=req.memory_type,
+        tags=req.tags,
+        memory_id=record.id,
+    )
     return {"status": "written", "memory_id": record.id}
 
 
@@ -203,6 +229,14 @@ async def retrieve_memory(req: RetrieveRequest):
     )
     for r in user_results:
         await db.update_access(r["memory_id"])
+    # Log the retrieval
+    await interaction_logger.log_retrieval(
+        user_id=req.user_id,
+        query=req.query,
+        top_k=req.top_k,
+        results=user_results,
+        search_method="hybrid"
+    )
     return {"query": req.query, "results": user_results}
 
 
