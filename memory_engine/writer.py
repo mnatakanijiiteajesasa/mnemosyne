@@ -64,6 +64,7 @@ class MemoryWriter:
                 "session_id":   session_id,
                 "memory_type":  memory_type,
                 "importance":   record.importance_score,
+                "content":      content,
             },
         )
 
