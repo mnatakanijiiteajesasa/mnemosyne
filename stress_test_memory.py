@@ -192,7 +192,7 @@ async def test_persistent_memory():
     # Final summary
     print(f"\n{'='*60}")
     if all_passed:
-        print(f"🎉 ALL TESTS PASSED - Persistent memory system is working correctly!")
+        print(f" ALL TESTS PASSED - Persistent memory system is working correctly!")
         print(f"   Memories are being stored, retrieved, and contextualized properly.")
     else:
         print(f"❌ SOME TESTS FAILED - There may be issues with memory persistence.")
