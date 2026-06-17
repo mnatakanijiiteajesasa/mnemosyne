@@ -42,6 +42,17 @@ with st.sidebar:
         st.text(f"User ID: {st.session_state.user_id}")
         st.text(f"Session ID: {st.session_state.session_id}")
 
+    # Conversation history
+    st.subheader("Conversation History")
+    if st.session_state.messages:
+        for msg in st.session_state.messages:
+            role = "You" if msg["role"] == "user" else "Assistant"
+            # Truncate content for brevity
+            content_preview = msg["content"].replace("\n", " ")[:100]
+            st.caption(f"{role}: {content_preview}...")
+    else:
+        st.caption("No conversation yet.")
+
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
