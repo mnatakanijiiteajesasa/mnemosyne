@@ -37,7 +37,7 @@ def get_current_session():
     # Fallback (should not happen)
     return st.session_state.sessions[0] if st.session_state.sessions else None
 
-st.title("🧠 Mnemosyne AI Agent")
+st.title("Mnemosyne AI Agent")
 st.caption("Persistent memory AI agent")
 
 # Sidebar for controls and history
@@ -45,7 +45,7 @@ with st.sidebar:
     st.header("Controls")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💬 New Chat", use_container_width=True):
+        if st.button("New Chat", use_container_width=True):
             # Create new session
             new_session = {
                 "session_id": f"session_{str(uuid.uuid4())[:8]}",
@@ -56,7 +56,7 @@ with st.sidebar:
             st.session_state.current_session_id = new_session["session_id"]
             st.experimental_rerun()
     with col2:
-        if st.button("🔄 Refresh", use_container_width=True):
+        if st.button("Refresh", use_container_width=True):
             st.experimental_rerun()
 
     # Show current session info (optional, for debugging)
@@ -78,7 +78,7 @@ with st.sidebar:
             # Determine if this is the current session
             is_current = sess["session_id"] == st.session_state.current_session_id
             # Create a label
-            label = "🟢 Current" if is_current else ""
+            label = "Current" if is_current else ""
             # Preview: first user message or empty
             preview = "Empty session"
             if sess["messages"]:
