@@ -9,8 +9,8 @@ services:
       - "8000:8000"
     environment:
       - TEST_VAR=direct_test
-      - GNN_MODEL_PATH=/tmp/gnn_checkpoints/ckpt_epoch_0.pt
-      - SURVIVAL_MODEL_PATH=/app/survival_classifier.pt
+      - MY_TEST_PATH=/tmp/gnn_checkpoints/ckpt_epoch_0.pt
+      - ANOTHER_PATH=/app/survival_classifier.pt
     volumes:
       - .:/app
     depends_on:
