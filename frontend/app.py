@@ -4,6 +4,7 @@ import os
 import json
 from datetime import datetime
 import uuid
+import re
 
 # Configuration
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -13,6 +14,72 @@ st.set_page_config(
     page_icon="🧠",
     layout="wide"
 )
+
+
+def generate_topic_code(messages):
+    """
+    Generate a 3-4 letter topic code from session messages.
+    Extracts significant words and returns their initials as an uppercase code.
+    """
+    if not messages:
+        return "???"
+
+    # Combine all user messages (or all messages if preferred)
+    user_messages = [msg["content"] for msg in messages if msg["role"] == "user"]
+    if not user_messages:
+        # Fallback to all messages if no user messages
+        all_messages = [msg["content"] for msg in messages]
+        text = " ".join(all_messages)
+    else:
+        text = " ".join(user_messages)
+
+    if not text.strip():
+        return "???"
+
+    # Simple stopwords list (common English words to ignore)
+    stopwords = {
+        'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
+        'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were',
+        'will', 'with', 'the', 'this', 'but', 'they', 'have', 'had', 'what', 'which',
+        'their', 'said', 'each', 'which', 'she', 'do', 'how', 'their', 'if', 'we',
+        'will', 'up', 'other', 'about', 'out', 'many', 'then', 'them', 'these', 'so',
+        'some', 'her', 'would', 'make', 'like', 'into', 'has', 'more', 'go', 'no',
+        'way', 'could', 'my', 'than', 'first', 'been', 'call', 'who', 'oe', 'its',
+        'now', 'find', 'long', 'down', 'day', 'did', 'get', 'come', 'made', 'may',
+        'part'
+    }
+
+    # Extract words (alphanumeric sequences)
+    words = re.findall(r'\b[a-zA-Z]{2,}\b', text.lower())
+
+    # Filter out stopwords and get unique words
+    meaningful_words = [w for w in words if w not in stopwords]
+
+    # If we don't have enough meaningful words, fall back to all words
+    if len(meaningful_words) < 3:
+        meaningful_words = words
+
+    # Sort by length (longer words first) to get more significant terms
+    meaningful_words.sort(key=len, reverse=True)
+
+    # Take first letters of up to 4 words
+    initials = []
+    for word in meaningful_words[:4]:
+        if word:  # Ensure word is not empty
+            initials.append(word[0].upper())
+
+    # Ensure we have at least 3 characters
+    while len(initials) < 3:
+        initials.append('X')  # Padding character
+
+    # Take exactly 3-4 characters
+    result = ''.join(initials[:4])
+
+    # If we somehow got less than 3, pad with X
+    if len(result) < 3:
+        result = result.ljust(3, 'X')
+
+    return result
 
 # Auto-generated user ID
 if "user_id" not in st.session_state:
@@ -78,20 +145,11 @@ with st.sidebar:
             # Determine if this is the current session
             is_current = sess["session_id"] == st.session_state.current_session_id
             # Create a label
-            label = "Current" if is_current else ""
-            # Preview: first user message or empty
-            preview = "Empty session"
-            if sess["messages"]:
-                # Find first user message
-                for msg in sess["messages"]:
-                    if msg["role"] == "user":
-                        preview = msg["content"].replace("\n", " ")[:60]
-                        break
-                else:
-                    # No user message, maybe first is assistant
-                    preview = sess["messages"][0]["content"].replace("\n", " ")[:60]
+            label = "🟢 Current" if is_current else ""
+            # Generate topic summary (3-4 letters) from session messages
+            topic_code = generate_topic_code(sess["messages"])
             # Display session as clickable button
-            button_label = f"{preview}... {label}".strip()
+            button_label = f"{topic_code} {label}".strip()
             if st.button(button_label, key=f"session_{sess['session_id']}", use_container_width=True):
                 if not is_current:  # Only switch if it's not already current
                     st.session_state.current_session_id = sess["session_id"]
