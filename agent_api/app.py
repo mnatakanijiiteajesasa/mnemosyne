@@ -38,6 +38,125 @@ episodic_summarizer: EpisodicSummarizer = None
 FORGET_EVERY_N_TURNS = 10
 
 
+class ArchetypeSeeder:
+    """
+    Seeds new user graphs with archetype memories to resolve GNN cold start problem.
+    Combines archetype bootstrapping with confidence-gated GNN retrieval.
+    """
+
+    def __init__(self, db: MemoryDB, encoder: EmbeddingEngine, graph: GraphBuilder):
+        self.db = db
+        self.encoder = encoder
+        self.graph = graph
+        # In a full implementation, this would load pre-computed archetypes
+        # For now, we'll use a simple default archetype
+        self.default_archetype = self._create_default_archetype()
+
+    def _create_default_archetype(self) -> list[dict]:
+        """
+        Create a default archetype subgraph representing a general user persona.
+        In production, this would be loaded from a pre-trained archetype library.
+        """
+        # Simple archetype: 4 nodes representing basic user interaction patterns
+        return [
+            {
+                "content": "User prefers clear and concise responses",
+                "memory_type": "preference",
+                "importance_score": 0.7,
+                "tags": ["communication", "style"]
+            },
+            {
+                "content": "User is interested in learning new concepts",
+                "memory_type": "preference",
+                "importance_score": 0.6,
+                "tags": ["learning", "curiosity"]
+            },
+            {
+                "content": "User asks follow-up questions to deepen understanding",
+                "memory_type": "episode",
+                "importance_score": 0.5,
+                "tags": ["interaction", "engagement"]
+            },
+            {
+                "content": "User appreciates practical examples and use cases",
+                "memory_type": "preference",
+                "importance_score": 0.65,
+                "tags": ["practical", "application"]
+            }
+        ]
+
+    async def seed_if_new_user(self, user_id: str):
+        """
+        Check if user is new (no existing memories) and seed with archetype if needed.
+        Implements archetype bootstrapping with initial seed confidence.
+        """
+        # Check if user has any existing active memories
+        existing_memories = await self.db.get_active(user_id)
+
+        # If user already has memories, no seeding needed
+        if len(existing_memories) > 0:
+            return
+
+        # This is a new user - seed with archetype memories
+        print(f"ArchetypeSeeder: Seeding new user {user_id} with default archetype")
+
+        # Seed each archetype memory with is_seed=true and seed_confidence=0.3
+        # We'll store this information in tags for now (in production, might extend schema)
+        seeded_count = 0
+        for i, archetype_mem in enumerate(self.default_archetype):
+            try:
+                # Add seed metadata to tags
+                seed_tags = archetype_mem.get("tags", []) + [
+                    f"is_seed:true",
+                    f"seed_confidence:0.3",
+                    f"seed_index:{i}"
+                ]
+
+                # Create memory record
+                from memory_engine.models import MemoryRecord, MemoryType
+                record = MemoryRecord(
+                    user_id=user_id,
+                    session_id="archetype_seed",  # Special session ID for archetype seeds
+                    content=archetype_mem["content"],
+                    memory_type=MemoryType(archetype_mem["memory_type"]),
+                    importance_score=archetype_mem["importance_score"],
+                    tags=seed_tags,
+                    source_turn=0
+                )
+
+                # Persist to MongoDB
+                await self.db.write(record)
+
+                # Encode and store in Qdrant
+                await self.encoder.store(
+                    memory_id=record.id,
+                    text=record.content,
+                    payload={
+                        "user_id": user_id,
+                        "session_id": record.session_id,
+                        "memory_type": record.memory_type.value,
+                        "importance": record.importance_score,
+                        "content": record.content,
+                        "is_seed": True,
+                        "seed_confidence": 0.3
+                    },
+                )
+
+                # Link embedding back in MongoDB
+                await self.db.set_embedding_id(record.id, record.id)
+
+                seeded_count += 1
+
+            except Exception as e:
+                print(f"ArchetypeSeeder: Error seeding memory {i}: {e}")
+                continue
+
+        # TODO: Build edges between seeded memories to create archetype subgraph structure
+        # For now, we'll rely on the graph builder to create edges based on similarity
+
+        print(f"ArchetypeSeeder: Seeded {seeded_count} archetype memories for user {user_id}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm, interaction_logger, episodic_summarizer
@@ -144,6 +263,11 @@ def health():
 async def process_turn(req: TurnRequest):
     # 1. Get or create session
     session = await session_store.get_or_create(req.user_id, req.session_id)
+
+    # Check if this is a new user with no memories and seed archetype if needed
+    archetype_seeder = ArchetypeSeeder(db, encoder, graph)
+    await archetype_seeder.seed_if_new_user(req.user_id)
+
     turn    = await session_store.tick(session.id)
 
     # 2. Age all memories

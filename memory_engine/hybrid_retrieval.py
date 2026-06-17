@@ -144,6 +144,7 @@ class HybridRetrievalEngine:
     ) -> List[Dict[str, Any]]:
         """
         Search for memories using hybrid retrieval.
+        Implements dynamic confidence gating based on real memory count.
 
         Args:
             query: Search query text
@@ -184,6 +185,13 @@ class HybridRetrievalEngine:
                 self.cache.put(cache_key, vector_results)
             return final_results
 
+        # Calculate dynamic alpha based on real memory count
+        # α = min(1.0, real_memory_count / threshold)
+        # Where threshold is tunable (default 15)
+        real_memory_count = await self._count_real_memories(user_id)
+        threshold = 15  # Tunable constant - memories needed for full GNN trust
+        dynamic_alpha = min(1.0, real_memory_count / threshold)
+
         # Stage 2: GNN re-ranking
         try:
             # Build user graph for GNN scoring
@@ -197,9 +205,9 @@ class HybridRetrievalEngine:
                 user_id, memory_ids, graph_data
             )
 
-            # Combine scores and re-rank
+            # Combine scores and re-rank with dynamic alpha
             hybrid_results = self._compute_hybrid_scores(
-                vector_results, gnn_scores, self.alpha
+                vector_results, gnn_scores, dynamic_alpha
             )
 
             # Take top-k
@@ -214,6 +222,30 @@ class HybridRetrievalEngine:
             self.cache.put(cache_key, vector_results)  # Cache the broader vector results
 
         return final_results
+
+    async def _count_real_memories(self, user_id: str) -> int:
+        """
+        Count non-seed (real) memories for a user.
+        Seed memories are identified by having 'is_seed:true' in tags.
+        """
+        try:
+            # Get all active memories for the user
+            all_memories = await self.db.get_active(user_id)
+
+            # Count memories that are NOT seed memories
+            real_count = 0
+            for memory in all_memories:
+                # Convert MemoryRecord to dict for tag checking
+                memory_dict = memory.dict() if hasattr(memory, 'dict') else dict(memory)
+                seed_confidence = self._get_seed_confidence(memory_dict)
+                # If seed confidence is 1.0 (default), it's not a seed memory
+                if seed_confidence >= 1.0:
+                    real_count += 1
+
+            return real_count
+        except Exception as e:
+            print(f"Error counting real memories for user {user_id}: {e}")
+            return 0  # Fail safe - assume no real memories
 
     async def _get_gnn_scores_for_memory_ids(
         self,
@@ -274,11 +306,12 @@ class HybridRetrievalEngine:
     ) -> List[Dict[str, Any]]:
         """
         Compute hybrid scores combining vector similarity and GNN relevance.
+        Implements confidence gating for seed memories.
 
         Args:
             vector_results: Results from vector search with 'score' field
             gnn_scores: Dict mapping memory_id to GNN relevance score
-            alpha: Weight for GNN score (1-alpha for vector score)
+            alpha: Base weight for GNN score (will be adjusted for seed memories)
 
         Returns:
             Results sorted by hybrid score (descending)
@@ -292,12 +325,22 @@ class HybridRetrievalEngine:
             # GNN relevance score
             gnn_score = gnn_scores.get(mid, 0.5)
 
+            # Check if this is a seed memory and get seed confidence
+            seed_confidence = self._get_seed_confidence(result)
+            is_seed_memory = seed_confidence > 0
+
+            # Apply seed confidence to GNN score (seeds have lower confidence)
+            adjusted_gnn_score = gnn_score * seed_confidence if is_seed_memory else gnn_score
+
             # Hybrid score: weighted combination
-            hybrid_score = alpha * gnn_score + (1 - alpha) * vector_score
+            hybrid_score = alpha * adjusted_gnn_score + (1 - alpha) * vector_score
 
             # Store all scores for transparency/debugging
             result["vector_score"] = vector_score
             result["gnn_score"] = gnn_score
+            result["adjusted_gnn_score"] = adjusted_gnn_score
+            result["seed_confidence"] = seed_confidence
+            result["is_seed_memory"] = is_seed_memory
             result["hybrid_score"] = hybrid_score
 
             # Use hybrid score as the main score for compatibility
@@ -307,6 +350,29 @@ class HybridRetrievalEngine:
         vector_results.sort(key=lambda x: x["hybrid_score"], reverse=True)
 
         return vector_results
+
+    def _get_seed_confidence(self, memory_result: Dict[str, Any]) -> float:
+        """
+        Extract seed confidence from memory result tags.
+        Returns 1.0 for non-seed memories, 0.0-1.0 for seed memories.
+        """
+        tags = memory_result.get("tags", [])
+        seed_confidence = 1.0  # Default for non-seed memories
+
+        for tag in tags:
+            if tag.startswith("seed_confidence:"):
+                try:
+                    confidence_str = tag.split(":", 1)[1]
+                    seed_confidence = float(confidence_str)
+                    # Ensure it's in valid range
+                    seed_confidence = max(0.0, min(1.0, seed_confidence))
+                    break
+                except (ValueError, IndexError):
+                    # If parsing fails, treat as non-seed
+                    seed_confidence = 1.0
+                    break
+
+        return seed_confidence
 
     async def search_with_recency_boost(
         self,
