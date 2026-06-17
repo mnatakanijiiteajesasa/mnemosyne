@@ -30,8 +30,9 @@ def generate_synthetic_data(num_samples: int = 1000) -> List[MemoryRecord]:
     for _ in range(num_samples):
         # Random importance score
         importance = np.random.uniform(0.0, 1.0)
-        # Random memory type
-        mtype = np.random.choice(list(MemoryType))
+        # Random memory type (returns numpy string, convert to enum)
+        mtype_str = np.random.choice([mt.value for mt in MemoryType])
+        mtype = MemoryType(mtype_str)
         # Random turns since access (0-100)
         turns = np.random.randint(0, 101)
         # Random access count (0-50)

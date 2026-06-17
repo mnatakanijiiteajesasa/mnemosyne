@@ -102,7 +102,7 @@ class SurvivalClassifierTrainer:
         log_access = np.log1p(record.access_count)
 
         features = np.array(
-            [importance] + typeonehot + [log_turns, log_access],
+            [importance] + type_onehot + [log_turns, log_access],
             dtype=np.float32,
         )
         return features
