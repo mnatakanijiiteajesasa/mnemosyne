@@ -7,8 +7,9 @@ services:
     container_name: mnemosyne_api
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    environment:
+      - GNN_MODEL_PATH=/tmp/gnn_checkpoints/ckpt_epoch_0.pt
+      - SURVIVAL_MODEL_PATH=/app/survival_classifier.pt
     volumes:
       - .:/app
     depends_on:
