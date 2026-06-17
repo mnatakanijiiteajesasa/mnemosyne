@@ -90,13 +90,12 @@ with st.sidebar:
                 else:
                     # No user message, maybe first is assistant
                     preview = sess["messages"][0]["content"].replace("\n", " ")[:60]
-            # Display
-            col_a, col_b = st.columns([4, 1])
-            with col_a:
-                st.caption(f"{preview}... {label}")
-            with col_b:
-                # Option to switch session? Not required now.
-                pass
+            # Display session as clickable button
+            button_label = f"{preview}... {label}".strip()
+            if st.button(button_label, key=f"session_{sess['session_id']}", use_container_width=True):
+                if not is_current:  # Only switch if it's not already current
+                    st.session_state.current_session_id = sess["session_id"]
+                    st.experimental_rerun()
     else:
         st.caption("No sessions yet.")
 
