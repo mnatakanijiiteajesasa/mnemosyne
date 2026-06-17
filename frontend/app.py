@@ -165,7 +165,7 @@ if current_session:
             st.markdown(message["content"])
 
 # Chat input
-if prompt := st.chat_input("What's on your mind?"):
+if prompt := st.chat_input("What's poppin'?"):
     # Add user message to current session
     current_session = get_current_session()
     if current_session:
@@ -215,4 +215,4 @@ if prompt := st.chat_input("What's on your mind?"):
 
 # Footer
 st.divider()
-st.caption("Mnemosyne AI Agent - Powered by persistent memory")
+st.caption("Mnemosyne AI Agent - Powered by persistent will")
