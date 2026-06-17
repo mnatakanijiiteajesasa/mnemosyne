@@ -21,6 +21,10 @@ if "user_id" not in st.session_state:
 if "session_id" not in st.session_state:
     st.session_state.session_id = f"session_{str(uuid.uuid4())[:8]}"
 
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 st.title("🧠 Mnemosyne AI Agent")
 st.caption("Persistent memory AI agent")
 
@@ -52,10 +56,6 @@ with st.sidebar:
             st.caption(f"{role}: {content_preview}...")
     else:
         st.caption("No conversation yet.")
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
 # Display chat messages
 for message in st.session_state.messages:
