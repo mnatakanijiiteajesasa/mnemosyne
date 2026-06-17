@@ -9,11 +9,14 @@ Run with:
 Or from Docker:
   docker compose exec api pytest tests/test_gnn_phase5.py -v
 """
-
+import sys
+import os 
 import pytest
 import torch
 import numpy as np
 from torch_geometric.data import Data
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from memory_engine.gnn_engine.model import MemoryGNN, GNNTrainer
 from memory_engine.gnn_engine.processor import GraphProcessor, MEMORY_TYPE_MAP

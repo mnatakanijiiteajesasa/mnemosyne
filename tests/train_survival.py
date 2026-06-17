@@ -12,6 +12,9 @@ import os
 import torch
 import numpy as np
 from pathlib import Path
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from memory_engine.survival_classifier import SurvivalClassifierTrainer, create_survival_classifier
 from memory_engine.models import MemoryRecord, MemoryType
