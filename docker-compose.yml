@@ -7,10 +7,8 @@ services:
     container_name: mnemosyne_api
     ports:
       - "8000:8000"
-    environment:
-      - TEST_VAR=direct_test
-      - MY_TEST_PATH=/tmp/gnn_checkpoints/ckpt_epoch_0.pt
-      - ANOTHER_PATH=/app/survival_classifier.pt
+    env_file:
+      - .env
     volumes:
       - .:/app
     depends_on:
