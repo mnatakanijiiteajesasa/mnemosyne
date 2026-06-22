@@ -81,9 +81,10 @@ def generate_topic_code(messages):
 
     return result
 
-# Auto-generated user ID
+
+# Persistent user ID, fixed so memories accumulate across all sessions
 if "user_id" not in st.session_state:
-    st.session_state.user_id = f"user_{str(uuid.uuid4())[:8]}"
+    st.session_state.user_id = "newton"
 
 # Initialize sessions list and current session
 if "sessions" not in st.session_state:
