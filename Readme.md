@@ -66,6 +66,10 @@ See `.env.example` for required variables including:
 - Retrieval settings (cache sizes, hybrid weights)
 - Frontend-backend communication (BACKEND_URL for frontend)
 
+## User Identification
+
+For development and memory accumulation purposes, the user ID is set to a constant value: `"newton"`. This allows memories to accumulate across all sessions and enables the GNN to reach sufficient memory counts for effective operation.
+
 ## API Endpoints
 
 - `GET /health` - Health check
@@ -112,9 +116,9 @@ docker compose up --build
 ```
 
 Then access:
-- **Frontend**: http://localhost:8501
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+- **Frontend**: http://47.251.172.197:8501/
+- **Backend API**: http://47.251.172.197:8000
+- **API Documentation**: http://47.251.172.197:8000/docs
 
 ## License
 
