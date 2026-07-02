@@ -39,7 +39,7 @@ class MemoryWriter:
         """
         try:
             # Get all active memories for the user
-            all_memories = await self.db.get_active(user_id)
+            all_memories = await self._db.get_active(user_id)
 
             # Count real (non-seed) memories
             real_memory_count = 0
@@ -111,7 +111,7 @@ class MemoryWriter:
         """
         try:
             # Get the current memory record
-            memory = await self.db.get(memory_id)
+            memory = await self._db.get(memory_id)
             if not memory:
                 return
 
@@ -135,7 +135,7 @@ class MemoryWriter:
             updated_memory = MemoryRecord(**memory_dict)
 
             # Save the updated memory
-            await self.db._col.update_one(
+            await self._db._col.update_one(
                 {"id": memory_id},
                 {"$set": {"tags": new_tags}}
             )
