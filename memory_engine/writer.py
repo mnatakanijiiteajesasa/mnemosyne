@@ -151,6 +151,7 @@ class MemoryWriter:
         memory_type: MemoryType,
         tags:        list[str] = [],
         source_turn: int = 0,
+        importance_score: float | None = None,
     ) -> MemoryRecord:
 
         # 1. Build record
@@ -159,7 +160,10 @@ class MemoryWriter:
             session_id       = session_id,
             content          = content,
             memory_type      = memory_type,
-            importance_score = estimate_importance(content, memory_type),
+            importance_score = (
+                importance_score 
+                if importance_score is not None 
+                else estimate_importance(content, memory_type)),
             tags             = tags,
             source_turn      = source_turn,
         )
