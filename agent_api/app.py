@@ -363,6 +363,10 @@ async def process_turn(req: TurnRequest):
     auto_written = []
     if req.query and reply and memory_extractor:
         try:
+            print("="*60)
+            print("Memory extractor:", memory_extractor)
+            print("Query:", req.query)
+            print("Reply:", reply)
             auto_memories = await memory_extractor.extract_memories(
                 user_message=req.query,
                 assistant_reply=reply,
@@ -370,6 +374,11 @@ async def process_turn(req: TurnRequest):
                 session_id=session.id,
                 turn_number=turn,
             )
+            print("Extracted memories:")
+            print(auto_memories)
+            print(type(auto_memories))
+            print("Count:", len(auto_memories))
+            
             for m in auto_memories:
                 record = await writer.write(
                     user_id          = req.user_id,
