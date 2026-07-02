@@ -22,6 +22,7 @@ from memory_engine.llm_client import QwenClient
 from memory_engine.hybrid_retrieval import HybridRetrievalEngine, create_hybrid_retrieval_engine
 from memory_engine.interaction_logger import InteractionLogger
 from memory_engine.episodic_summarizer import EpisodicSummarizer, create_episodic_summarizer
+from memory_engine.memory_extractor import AutonomousMemoryExtractor, create_memory_extractor
 
 
 db:            MemoryDB          = None
@@ -34,6 +35,9 @@ session_store: SessionStore      = None
 llm:           QwenClient        = None
 interaction_logger: InteractionLogger = None
 episodic_summarizer: EpisodicSummarizer = None
+episodic_summarizer: EpisodicSummarizer = None
+memory_extractor:    AutonomousMemoryExtractor = None   # NEW
+
 
 FORGET_EVERY_N_TURNS = 10
 
@@ -200,6 +204,7 @@ async def lifespan(app: FastAPI):
     interaction_logger = InteractionLogger(mongo_url)
     # Initialize episodic summarizer
     episodic_summarizer = create_episodic_summarizer(llm)
+    memory_extractor    = create_memory_extractor(llm)       # NEW
 
     await db.setup_indexes()
     await encoder.setup_collection()
@@ -341,6 +346,43 @@ async def process_turn(req: TurnRequest):
             retrieved_memories = retrieved,
             conversation_history = req.history,
         )
+    
+    # 6. Call Qwen with memory-injected prompt
+    reply = ""
+    if req.query:
+        reply = await llm.chat(
+            user_message       = req.query,
+            retrieved_memories = retrieved,
+            conversation_history = req.history,
+        )
+
+    #NEW — autonomously extract memories from this turn regardless of
+    # what the caller sent in req.memories. This is what actually makes
+    # memory accumulate — previously nothing ran unless the frontend
+    # explicitly populated `memories`, which it never did.
+    auto_written = []
+    if req.query and reply and memory_extractor:
+        try:
+            auto_memories = await memory_extractor.extract_memories(
+                user_message=req.query,
+                assistant_reply=reply,
+                user_id=req.user_id,
+                session_id=session.id,
+                turn_number=turn,
+            )
+            for m in auto_memories:
+                record = await writer.write(
+                    user_id          = req.user_id,
+                    session_id       = session.id,
+                    content          = m["content"],
+                    memory_type      = m["memory_type"],
+                    tags             = m.get("tags", []),
+                    source_turn      = m.get("source_turn", turn),
+                    importance_score = m.get("importance_score", 0.5),
+                )
+                auto_written.append(record.id)
+        except Exception as e:
+            print(f"/turn: autonomous extraction failed: {e}")
 
     # 7. Run forgetting every N turns
     archived = []
@@ -353,7 +395,7 @@ async def process_turn(req: TurnRequest):
         session_id=session.id,
         query=req.query,
         top_k=req.top_k,
-        memories_written=written + summary_written,
+        memories_written=written + summary_written + auto_written,   # CHANGED
         memories_retrieved=retrieved,
         reply=reply,
         archived_count=len(archived),
@@ -362,10 +404,10 @@ async def process_turn(req: TurnRequest):
     return {
         "session_id": session.id,
         "turn":       turn,
-        "written":    written + summary_written,
+        "written":    written + summary_written + auto_written,      # CHANGED
         "retrieved":  retrieved,
         "archived":   archived,
-        "reply":      reply,             # NEW — Qwen's response
+        "reply":      reply,
     }
 
 
