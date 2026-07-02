@@ -163,7 +163,7 @@ class ArchetypeSeeder:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm, interaction_logger, episodic_summarizer
+    global db, encoder, graph, hybrid_retrieval, writer, forgetting, session_store, llm, interaction_logger, episodic_summarizer, memory_extractor
 
     mongo_url  = os.getenv("MONGO_URL",  "mongodb://agent:agent@mongo:27017/memories?authSource=admin")
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
