@@ -220,7 +220,7 @@ app = FastAPI(title="Mnemosyne", version="0.6.0", lifespan=lifespan)
 # CORS middleware to allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific frontend origin
+    allow_origins=["http://47.251.172.197:8501/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
