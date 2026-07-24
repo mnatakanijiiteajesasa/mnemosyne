@@ -1,4 +1,6 @@
 import asyncio
+from dotenv import load_dotenv
+load_dotenv()  
 from memory_engine.client import MnemosyneClient, MnemosyneConfig
 
 async def main():
@@ -6,8 +8,9 @@ async def main():
         mongo_url="mongodb://agent:agent@localhost:27018/memories?authSource=admin",
         qdrant_url="http://localhost:6334",
     ))
-
-    result = await client.turn(user_id="persona_01", query="...")
+    
+    
+    result = await client.turn(user_id="persona_01", query="hello.")
 
     print(result)
 
