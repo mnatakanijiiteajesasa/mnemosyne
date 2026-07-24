@@ -467,7 +467,7 @@ class MemoryChainManager:
                 "step": i + 1,
                 "memory_id": memory.id,
                 "content": memory.content,
-                "memory_type": memory.memory_type.value,
+                "memory_type": memory.memory_type,
                 "importance": memory.importance_score,
                 "links": [],
             }

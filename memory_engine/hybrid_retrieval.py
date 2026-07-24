@@ -230,7 +230,7 @@ class HybridRetrievalEngine:
         """
         try:
             # Get all active memories for the user
-            all_memories = await self.db.get_active(user_id)
+            all_memories = await self.memory_db.get_active(user_id)
 
             # Count memories that are NOT seed memories
             real_count = 0

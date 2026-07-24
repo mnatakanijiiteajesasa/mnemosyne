@@ -43,7 +43,7 @@ class GraphProcessor:
     def __init__(self, mongo_url: str, qdrant_url: str, db_name: str = "memories"):
         self._mongo_client = AsyncIOMotorClient(mongo_url)
         self._db = self._mongo_client[db_name]
-        self._memories_col = self._db["memories"]
+        self._memories_col = self._db["memory_records"]
         self._edges_col = self._db["memory_edges"]
         self._qdrant = AsyncQdrantClient(url=qdrant_url)
 
@@ -66,7 +66,7 @@ class GraphProcessor:
         if not memories:
             raise ValueError(f"No memories found for user {user_id}")
 
-        memory_ids = [m["_id"] for m in memories]
+        memory_ids = [m["id"] for m in memories]
         memory_id_to_idx = {mid: i for i, mid in enumerate(memory_ids)}
 
         # 2. Build node feature matrix
@@ -108,7 +108,7 @@ class GraphProcessor:
         features = np.zeros((N, 391), dtype=np.float32)
 
         # Collect memory_ids to batch fetch embeddings
-        memory_ids = [m["_id"] for m in memories]
+        memory_ids = [m["id"] for m in memories]
 
         # Fetch embeddings from Qdrant
         embeddings = await self._fetch_embeddings(memory_ids)
@@ -119,7 +119,7 @@ class GraphProcessor:
         max_access = max([m.get("access_count", 1) for m in memories] + [1])
 
         for i, mem in enumerate(memories):
-            mid = mem["_id"]
+            mid = mem["id"]
 
             # Embedding [0:384]
             emb = embedding_dict.get(mid)
@@ -249,7 +249,7 @@ class GraphProcessor:
 
         cluster_labels = torch.zeros(N, dtype=torch.long, device=device)
         memories = await self._fetch_user_memories(user_id)
-        memory_id_to_mem = {m["_id"]: m for m in memories}
+        memory_id_to_mem = {m["id"]: m for m in memories}
 
         for i, mid in enumerate(data.memory_ids):
             mem = memory_id_to_mem[mid]

@@ -138,7 +138,7 @@ class ArchetypeSeeder:
                     payload={
                         "user_id": user_id,
                         "session_id": record.session_id,
-                        "memory_type": record.memory_type.value,
+                        "memory_type": record.memory_type,
                         "importance": record.importance_score,
                         "content": record.content,
                         "is_seed": True,
