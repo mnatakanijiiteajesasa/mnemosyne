@@ -22,6 +22,7 @@ LAMBDA = {
     MemoryType.FACT:       0.001,
     MemoryType.PREFERENCE: 0.003,
     MemoryType.EPISODE:    0.008,
+    MemoryType.PLANNING:  0.002,
 }
 
 # Memories below this threshold get archived

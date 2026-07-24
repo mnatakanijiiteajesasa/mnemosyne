@@ -22,6 +22,7 @@ MEMORY_TYPE_LABELS = {
     MemoryType.FACT:       "Known Fact",
     MemoryType.EPISODE:    "Past Episode",
     MemoryType.RULE:       "Behavioural Rule",
+    MemoryType.PLANNING:   "Planning Note",
 }
 
 BASE_SYSTEM_PROMPT = """You are Mnemosyne, an AI agent with persistent memory. Unlike a typical

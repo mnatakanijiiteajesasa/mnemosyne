@@ -23,7 +23,7 @@ class SurvivalClassifier(nn.Module):
     Logistic regression model for predicting memory survival probability.
     """
 
-    def __init__(self, input_dim: int = 7):
+    def __init__(self, input_dim: int = 8):
         """
         Args:
             input_dim: Number of input features.
@@ -77,9 +77,9 @@ class SurvivalClassifierTrainer:
         Convert a MemoryRecord to a feature vector.
         Features:
           [0] importance_score
-          [1-4] memory_type one-hot (PREFERENCE, FACT, EPISODE, RULE)
-          [5] log(1 + turns_since_access)
-          [6] log(1 + access_count)
+          [1-5] memory_type one-hot (PREFERENCE, FACT, EPISODE, RULE, PLANNING)
+          [6] log(1 + turns_since_access)
+          [7] log(1 + access_count)
         """
         # Importance score
         importance = record.importance_score
@@ -90,8 +90,9 @@ class SurvivalClassifierTrainer:
             MemoryType.FACT: 1,
             MemoryType.EPISODE: 2,
             MemoryType.RULE: 3,
+            MemoryType.PLANNING: 4,
         }
-        type_onehot = [0.0] * 4
+        type_onehot = [0.0] * 5
         if record.memory_type in type_map:
             type_onehot[type_map[record.memory_type]] = 1.0
 
@@ -138,6 +139,7 @@ class SurvivalClassifierTrainer:
             MemoryType.FACT: 0.001,
             MemoryType.EPISODE: 0.008,
             MemoryType.RULE: 0.0005,
+            MemoryType.PLANNING: 0.002,
         }
         PRUNE_THRESHOLD = 0.08
         lam = LAMBDA.get(MemoryType(record.memory_type), 0.003)

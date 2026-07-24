@@ -17,6 +17,7 @@ def estimate_importance(content: str, memory_type: MemoryType) -> float:
         MemoryType.PREFERENCE: 0.70,
         MemoryType.FACT:       0.60,
         MemoryType.EPISODE:    0.40,
+        MemoryType.PLANNING:   0.50,
     }[memory_type]
 
     boosts = ["always", "never", "important", "prefer", "hate", "love",

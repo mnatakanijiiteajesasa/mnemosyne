@@ -115,6 +115,7 @@ class ForgettingService:
             MemoryType.FACT: 0.001,
             MemoryType.EPISODE: 0.008,
             MemoryType.RULE: 0.0005,
+            MemoryType.PLANNING: 0.002,
         }
         PRUNE_THRESHOLD = 0.08
         lam = LAMBDA.get(MemoryType(record.memory_type), 0.003)

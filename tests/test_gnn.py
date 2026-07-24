@@ -31,9 +31,9 @@ class TestMemoryGNN:
         """Model should initialize without errors."""
         model = MemoryGNN()
         assert model is not None
-        assert model.input_dim == 391
+        assert model.input_dim == 392
         assert model.output_dim == 128
-        assert model.num_clusters == 4
+        assert model.num_clusters == 5
 
     def test_forward_pass(self):
         """Model should do forward pass with correct output shapes."""
@@ -42,7 +42,7 @@ class TestMemoryGNN:
 
         # Create mock data
         N = 10  # 10 nodes
-        x = torch.randn(N, 391)
+        x = torch.randn(N, 392)  # 392-dim features
         edge_index = torch.tensor(
             [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
              [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]],
@@ -64,7 +64,7 @@ class TestMemoryGNN:
         model = MemoryGNN()
 
         N = 5
-        x = torch.randn(N, 391)
+        x = torch.randn(N, 392)
         edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]], dtype=torch.long)
 
         h, r, c = model(x, edge_index)
@@ -104,10 +104,10 @@ class TestGNNTrainer:
         N = 10
         data_list = []
         for _ in range(3):  # 3 graphs
-            x = torch.randn(N, 391)
+            x = torch.randn(N, 392)
             edge_index = torch.tensor([[0, 1, 2, 3, 4], [1, 2, 3, 4, 5]], dtype=torch.long)
             y_rel = torch.randint(0, 2, (N,))
-            y_cluster = torch.randint(0, 4, (N,))
+            y_cluster = torch.randint(0, 5, (N,))
 
             data = Data(x=x, edge_index=edge_index, y_relevance=y_rel, y_cluster=y_cluster)
             data_list.append(data)
@@ -219,7 +219,7 @@ def test_model_shapes_standalone():
     model.eval()
 
     N, E = 10, 20
-    x = torch.randn(N, 391)
+    x = torch.randn(N, 392)
     edge_index = torch.randint(0, N, (2, E))
 
     with torch.no_grad():
@@ -238,7 +238,7 @@ def test_loss_standalone():
     model = MemoryGNN()
 
     N = 8
-    x = torch.randn(N, 391)
+    x = torch.randn(N, 392)
     edge_index = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long)
 
     h, r, c = model(x, edge_index)
@@ -266,7 +266,7 @@ def test_trainer_standalone():
     N = 5
     data_list = []
     for i in range(2):
-        x = torch.randn(N, 391)
+        x = torch.randn(N, 392)
         edge_index = torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
         data = Data(
             x=x,

@@ -7,7 +7,7 @@ into PyTorch Geometric Data objects for GNN training/inference.
 Key responsibility:
   1. Fetch all memories for a user from MongoDB
   2. Get embeddings from Qdrant
-  3. Build node feature matrix (391-dim per memory)
+  3. Build node feature matrix (392-dim per memory)
   4. Get adjacency from memory_edges collection
   5. Construct torch_geometric.Data object
 """
@@ -30,6 +30,7 @@ MEMORY_TYPE_MAP = {
     MemoryType.FACT:       1,
     MemoryType.EPISODE:    2,
     MemoryType.RULE:       3,
+    MemoryType.PLANNING:   4,
 }
 
 COLLECTION_NAME = "memories"
@@ -57,7 +58,7 @@ class GraphProcessor:
 
         Returns:
             torch_geometric.Data object with:
-              - x: node features [N, 391]
+              - x: node features [N, 392]
               - edge_index: edge list [2, E]
               - memory_ids: list of memory IDs for reference
         """
@@ -95,17 +96,17 @@ class GraphProcessor:
 
     async def _build_node_features(self, memories: list[dict]) -> np.ndarray:
         """
-        Build 391-dim feature vector for each memory.
+        Build 392-dim feature vector for each memory.
 
         Dim breakdown:
           [0:384]   - embedding vector
-          [384:388] - one-hot memory type (4-dim)
-          [388]     - importance (normalized 0-1)
-          [389]     - age_turns (normalized 0-1 with log scale)
-          [390]     - access_count (normalized 0-1 with log scale)
+          [384:389] - one-hot memory type (5-dim)
+          [389]     - importance (normalized 0-1)
+          [390]     - age_turns (normalized 0-1 with log scale)
+          [391]     - access_count (normalized 0-1 with log scale)
         """
         N = len(memories)
-        features = np.zeros((N, 391), dtype=np.float32)
+        features = np.zeros((N, 392), dtype=np.float32)
 
         # Collect memory_ids to batch fetch embeddings
         memory_ids = [m["id"] for m in memories]
@@ -234,7 +235,7 @@ class GraphProcessor:
 
         Labels:
           - y_relevance: Did this memory get accessed in the next `window_size` turns?
-          - y_cluster: Memory type (0-3)
+          - y_cluster: Memory type (0-4)
 
         Note: Requires access_count history (Phase 8 feature).
         Currently uses proxy: accessed in last turn → label=1

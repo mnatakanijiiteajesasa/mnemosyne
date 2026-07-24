@@ -30,10 +30,10 @@ import os
 from pathlib import Path
 
 
-INPUT_DIM  = 391   # embedding(384) + type(4) + importance(1) + age(1) + access(1)
+INPUT_DIM  = 392   # embedding(384) + type(5) + importance(1) + age(1) + access(1)
 HIDDEN_DIM = 256
 OUTPUT_DIM = 128   # enriched embedding dim
-NUM_CLUSTERS = 4   # 4 memory types: preference, fact, episode, rule
+NUM_CLUSTERS = 5   # 5 memory types: preference, fact, episode, rule, planning
 
 
 class MemoryGNN(nn.Module):
