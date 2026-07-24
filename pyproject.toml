@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mnemosyne-memory-engine"
+version = "0.6.0"
+description = "GNN-augmented persistent memory engine for AI agents (Mnemosyne)"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas==2.3.0",
+    "numpy==2.2.6",
+    "pymongo==4.13.0",
+    "qdrant_client==1.12.0",
+    "redis==6.2.0",
+    "pydantic==2.9.2",
+    "pydantic-settings==2.6.1",
+    "sqlalchemy[asyncio]==2.0.36",
+    "psycopg2-binary==2.9.10",
+    "pgvector==0.4.1",
+    "asyncpg==0.30.0",
+    "sentence-transformers==4.1.0",
+    "motor==3.7.1",
+    "python_dotenv==1.1.0",
+    "openai>=1.0.0",
+    "httpx",
+]
+
+# NOTE: fastapi/uvicorn intentionally excluded -- those belong to agent_api,
+# not to the reusable memory_engine package. The eval project doesn't need
+# an HTTP server, it imports memory_engine.client.MnemosyneClient directly.
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.0"]
+
+[tool.setuptools]
+packages = [
+    "memory_engine",
+    "memory_engine.embeddings",
+    "memory_engine.gnn_engine",
+]
+
+# Usage from repo root (this file lives at repo root, alongside memory_engine/):
+#   pip install -e .
+#
+# Then from ANY other project/venv on the same machine:
+#   pip install -e /path/to/mnemosyne
+#   from memory_engine.client import MnemosyneClient, MnemosyneConfig
+#
+# This does not move, rename, or modify a single existing file in
+# memory_engine/, agent_api/, or frontend/ -- agent_api/app.py continues
+# to work exactly as it does today. This file and memory_engine/client.py
+# are pure additions.

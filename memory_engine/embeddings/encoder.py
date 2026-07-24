@@ -20,9 +20,7 @@ class EmbeddingEngine:
         self._model  = SentenceTransformer(model_name)
         self._qdrant = AsyncQdrantClient(url=qdrant_url)
 
-    # ------------------------------------------------------------------
     # Setup
-    # ------------------------------------------------------------------
 
     async def setup_collection(self):
         """Create Qdrant collection if it doesn't exist. Call once on startup."""
