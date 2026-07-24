@@ -1,1 +1,0 @@
-Mnemosyne is a python based GNN-augmented retrieval package that utilises GraphSage for better memory retaining, retrival and prunning. 
