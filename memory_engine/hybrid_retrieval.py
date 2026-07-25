@@ -356,7 +356,10 @@ class HybridRetrievalEngine:
         Extract seed confidence from memory result tags.
         Returns 1.0 for non-seed memories, 0.0-1.0 for seed memories.
         """
-        tags = memory_result.get("tags", [])
+        # Look for tags in payload first (expected location), then top-level (backward compatibility)
+        tags = memory_result.get("payload", {}).get("tags")
+        if tags is None:
+            tags = memory_result.get("tags", [])
         seed_confidence = 1.0  # Default for non-seed memories
 
         for tag in tags:
