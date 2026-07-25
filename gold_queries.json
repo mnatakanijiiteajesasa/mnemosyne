@@ -1,0 +1,56 @@
+[
+  {
+    "id": "log_49",
+    "user_id": "persona_06_fitness",
+    "query_text": "Thanks for the tips. I'll start with a reduced tempo run volume and see how my back handles it. I'll also focus more on core strengthening and make sure my desk setup is better. Hopefully, that helps.",
+    "relevant_memory_ids": [
+      "f8460c8d-425b-48bf-88d4-8adc440f311a",
+      "f000bfc5-2365-47e1-95cc-e893a3b303de",
+      "ecddc1c2-40e6-4520-ad5c-25d20c701d4e",
+      "fdb3bf09-3b03-43ae-a16b-555153ee8c46",
+      "f08960a3-e35c-446d-94b9-e0102237e1e8",
+      "7b2d45f1-5e55-4428-9f31-e76c01972e60",
+      "15124c99-eaeb-4f7a-a487-c2627533f726",
+      "92c92699-0262-43bc-9cbe-b181bfc50b02",
+      "fee68a66-344d-4392-b214-8420192f9bb3",
+      "b8d52ab2-8240-4a60-af17-48e4079c1a04",
+      "e1dd0a24-6eb7-44aa-a282-ae7d7d4ff1b4"
+    ]
+  },
+  {
+    "id": "log_53",
+    "user_id": "persona_04_small_business",
+    "query_text": "I think the flexible payment options and emphasizing the unique value of the table could work. I'll also offer to include a set of custom coasters as a little extra, which might sweeten the deal. Thanks for the ideas!",
+    "relevant_memory_ids": [
+      "5868d12e-04e8-46dc-89d7-7c8806489a2a",
+      "f17bed2f-5c09-4d1f-99e4-d230c7c9924a",
+      "97a89f72-5cb4-4c45-8517-8a3351325aeb",
+      "9e6f3f47-594b-4ff5-b626-dee8932cfc03",
+      "4043a9d7-fb56-4145-84f8-89c822fa1920",
+      "2d2ab3f4-8dea-4164-a541-11cdc5140de1",
+      "72d6d3f5-5a41-4f78-ae86-75212cf80f9b",
+      "c1732391-dda9-495b-9cbd-599c9d7ddb7f",
+      "95643ce2-7b46-407c-bb5e-efbc9ae67963",
+      "aba977b0-c8de-4261-a34b-4e0755f7594c",
+      "e2dad493-99b6-4fb6-a3a9-fae2ee33a033",
+      "abcc192b-1fd9-469d-9aa5-f49b1b1a3c40"
+    ]
+  },
+  {
+    "id": "log_5",
+    "user_id": "persona_03_grad_student",
+    "query_text": "I'm really struggling with the literature review for my chapter on solid-state electrolytes. Could you help me figure out how to structure it so that it clearly shows the progression of research and highlights the key challenges that remain?",
+    "relevant_memory_ids": [
+      "e2b009c0-4f2b-4e8c-bdef-6cc88abe96f1",
+      "9c8b1c98-b515-4aea-8316-fb0a313424c9",
+      "ac7c7ab2-e619-4ba3-83d9-c32ce8888ca4",
+      "70ec6db7-1c6b-4e5c-9493-a317db5da377",
+      "95001b7b-5a47-4013-a9e5-1adcd507c146",
+      "82ffaac7-3291-49aa-b2b2-10bd286fc77f",
+      "7bfb1378-b52d-4407-801a-3820f3bf0d40",
+      "3fd678a6-2e5c-4d06-a0d5-113bb0c760e3",
+      "ee596ad0-1343-4103-8347-dfe08f9d1349",
+      "a96451b0-6da4-44a1-821c-0a554e10494e"
+    ]
+  }
+]
